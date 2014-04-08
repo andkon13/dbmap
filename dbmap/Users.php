@@ -10,12 +10,9 @@ namespace dbmap;
 
 
 use dbmap\base\DbMap;
-use dbmap\fields\Id;
 
 class Users extends DbMap
 {
-    use Id;
-
     /**
      * return table name
      *

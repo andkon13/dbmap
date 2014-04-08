@@ -9,8 +9,11 @@
 namespace dbmap\base;
 
 
+use dbmap\fields\Id;
+
 abstract class DbMap
 {
+    use Id;
     /** @var bool|Pdo */
     static private $_db = false;
 
