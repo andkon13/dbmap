@@ -62,6 +62,7 @@ class Pdo extends \PDO
      * @param string $query
      * @param array  $param
      *
+     * @throws \Exception
      * @return \PDOStatement
      */
     public static function getResult($query, $param = array())
@@ -83,5 +84,36 @@ class Pdo extends \PDO
         $pdo = self::getResult($query, $param);
 
         return $pdo->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * @param string $table
+     * @param array  $attributes
+     *
+     * @return string
+     * @throws \PDOException
+     */
+    public function insert($table, $attributes)
+    {
+        $param = [];
+        foreach ($attributes as $field => $value) {
+            $param[':' . $field] = $value;
+        }
+
+        $fields = implode(', ', array_keys($attributes));
+        $sql    = 'insert into ' . $table . ' (' . $fields . ') values (' . implode(', ', array_keys($param)) . ')';
+        $pdo    = $this->_PDO->prepare($sql);
+        try {
+            $pdo->execute($param);
+        } catch (Exception $e) {
+            throw new \PDOException($e);
+        }
+
+        return $this->_PDO->lastInsertId();
+    }
+
+    public function update($table, $attributes, $filter_params)
+    {
+
     }
 }
