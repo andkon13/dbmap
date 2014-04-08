@@ -102,18 +102,51 @@ class Pdo extends \PDO
 
         $fields = implode(', ', array_keys($attributes));
         $sql    = 'insert into ' . $table . ' (' . $fields . ') values (' . implode(', ', array_keys($param)) . ')';
-        $pdo    = $this->_PDO->prepare($sql);
-        try {
-            $pdo->execute($param);
-        } catch (Exception $e) {
-            throw new \PDOException($e);
+        if ($this->execute($sql, $param)) {
+            return $this->_PDO->lastInsertId();
         }
 
-        return $this->_PDO->lastInsertId();
+        return false;
     }
 
     public function update($table, $attributes, $filter_params)
     {
+        $set   = [];
+        $param = [];
+        $where = [];
+        foreach ($attributes as $field => $value) {
+            $set[]               = '`' . $field . '` = :' . $field;
+            $param[':' . $field] = $value;
+        }
 
+        foreach ($filter_params as $field => $value) {
+            $where[]               = '`' . $field . '` = :w_' . $field;
+            $param[':w_' . $field] = $value;
+        }
+
+        $set   = implode(', ', $set);
+        $where = implode(' and ', $where);
+        $sql   = 'update ' . $table . ' set ' . $set . ' where ' . $where;
+
+        return $this->execute($sql, $param);
+
+    }
+
+    /**
+     * @param $sql
+     * @param $param
+     *
+     * @return bool
+     * @throws \PDOException
+     */
+    private function execute($sql, $param)
+    {
+        try {
+            $res = $this->_PDO->prepare($sql)->execute($param);
+        } catch (Exception $e) {
+            throw new \PDOException($e);
+        }
+
+        return $res;
     }
 }
