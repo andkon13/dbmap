@@ -34,9 +34,7 @@ trait Id
         }
 
         /** @var DbMap $class */
-        $class = new $class(false);
-
-        $class->setAttributes($attrib);
+        $class = new $class(false, $attrib);
 
         return $class;
     }

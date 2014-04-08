@@ -62,6 +62,7 @@ class Pdo extends \PDO
      * @param string $query
      * @param array  $param
      *
+     * @throws \Exception
      * @return \PDOStatement
      */
     public static function getResult($query, $param = array())
@@ -83,5 +84,69 @@ class Pdo extends \PDO
         $pdo = self::getResult($query, $param);
 
         return $pdo->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * @param string $table
+     * @param array  $attributes
+     *
+     * @return string
+     * @throws \PDOException
+     */
+    public function insert($table, $attributes)
+    {
+        $param = [];
+        foreach ($attributes as $field => $value) {
+            $param[':' . $field] = $value;
+        }
+
+        $fields = implode(', ', array_keys($attributes));
+        $sql    = 'insert into ' . $table . ' (' . $fields . ') values (' . implode(', ', array_keys($param)) . ')';
+        if ($this->execute($sql, $param)) {
+            return $this->_PDO->lastInsertId();
+        }
+
+        return false;
+    }
+
+    public function update($table, $attributes, $filter_params)
+    {
+        $set   = [];
+        $param = [];
+        $where = [];
+        foreach ($attributes as $field => $value) {
+            $set[]               = '`' . $field . '` = :' . $field;
+            $param[':' . $field] = $value;
+        }
+
+        foreach ($filter_params as $field => $value) {
+            $where[]               = '`' . $field . '` = :w_' . $field;
+            $param[':w_' . $field] = $value;
+        }
+
+        $set   = implode(', ', $set);
+        $where = implode(' and ', $where);
+        $sql   = 'update ' . $table . ' set ' . $set . ' where ' . $where;
+
+        return $this->execute($sql, $param);
+
+    }
+
+    /**
+     * @param $sql
+     * @param $param
+     *
+     * @return bool
+     * @throws \PDOException
+     */
+    private function execute($sql, $param)
+    {
+        try {
+            $res = $this->_PDO->prepare($sql)->execute($param);
+        } catch (Exception $e) {
+            throw new \PDOException($e);
+        }
+
+        return $res;
     }
 }
