@@ -8,7 +8,6 @@
 
 namespace dbmap\base;
 
-
 use dbmap\fields\Id;
 
 abstract class DbMap
@@ -65,26 +64,10 @@ abstract class DbMap
     }
 
     /**
-     * @return bool
+     * Сохраняет модель
+     *
+     * @return bool|string
      */
-    public function validate()
-    {
-        if (!$this->beforeValidate()) {
-            return false;
-        }
-
-        $attributes = $this->getAttributes();
-        $result     = true;
-        foreach ($attributes as $field => $value) {
-            $validator_func = $field . 'Validator';
-            if (method_exists($this, $validator_func)) {
-                $result = ($result && $this->$validator_func($value));
-            }
-        }
-
-        return $result;
-    }
-
     public function save()
     {
         if (!$this->validate()) {
@@ -97,12 +80,24 @@ abstract class DbMap
 
         $table = $this->getTableName();
         if ($this->_isNew) {
-            return $this->getDb()->insert($table, $this->getAttributes());
+            $save     = $this->getDb()->insert($table, $this->getAttributes());
+            $this->id = $save;
         } else {
-            return $this->getDb()->update($table, $this->getAttributes(), ['id' => $this->id]);
+            $save = $this->getDb()->update($table, $this->getAttributes(), ['id' => $this->id]);
         }
+
+        $this->_initAttrubutes = $this->getAttributes();
+
+        return $save;
     }
 
+    /**
+     * Устанавливает атрибуты
+     *
+     * @param $attributes
+     *
+     * @return $this
+     */
     public function setAttributes($attributes)
     {
         $vars = get_object_vars($this);
@@ -142,8 +137,39 @@ abstract class DbMap
     /**
      * @return bool
      */
+    public function validate()
+    {
+        if (!$this->beforeValidate()) {
+            return false;
+        }
+
+        $attributes = $this->getAttributes();
+        $result     = true;
+        foreach ($attributes as $field => $value) {
+            $validator_func = $field . 'Validator';
+            if (method_exists($this, $validator_func)) {
+                $result = ($result && $this->$validator_func($value));
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return bool
+     */
     private function beforeSave()
     {
         return true;
+    }
+
+    public function __destruct()
+    {
+        if ($this->autoSaveChange) {
+            $diff = array_diff($this->_initAttrubutes, $this->getAttributes());
+            if (count($diff)) {
+                $this->save();
+            }
+        }
     }
 }
