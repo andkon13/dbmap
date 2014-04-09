@@ -216,25 +216,32 @@ abstract class DbMap
         }
     }
 
+    /**
+     * Возвращает мвязанные модели
+     *
+     * @param string $relation_name ися связи
+     *
+     * @return DbMap|DbMap[]
+     * @throws \Exception
+     */
     private function _getRelation($relation_name)
     {
         $relation = $this->relations($relation_name);
         /** @var DbMap $class */
-        $class  = $relation[1];
-        $result = false;
+        $class = $relation[1];
+        $field = $relation[2];
         switch ($relation[0]) {
             case self::HAS_MANY:
-                $sql    = 'select * from ' . $class::getTableName() . ' where ' . $relation[2] . ' = ?';
+                $sql    = 'select * from ' . $class::getTableName() . ' where ' . $field . ' = ?';
                 $result = $class::bySql($sql, [$this->id]);
                 break;
             case self::HAS_ONE:
-                $sql    = 'select * from ' . $class::getTableName() . ' where ' . $relation[2] . ' = ?';
+                $sql    = 'select * from ' . $class::getTableName() . ' where ' . $field . ' = ?';
                 $result = $class::bySql($sql, [$this->id]);
                 $result = (isset($result[0])) ? $result[0] : [];
                 break;
             case self::BELONG_TO:
                 $sql    = 'select * from ' . $class::getTableName() . ' where id = ?';
-                $field  = $result[2];
                 $result = $class::bySql($sql, [$this->$field]);
                 $result = (isset($result[0])) ? $result[0] : [];
                 break;
