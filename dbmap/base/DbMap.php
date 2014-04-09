@@ -21,6 +21,21 @@ abstract class DbMap
      */
     public $autoSaveChange = false;
 
+    /**
+     * Связь один к одному master->slave (t.id = rel.t_id)
+     */
+    const HAS_ONE = 1;
+
+    /**
+     * Связь один к одному slave->master (rel.t_id = t.id)
+     */
+    const BELONG_TO = 0;
+
+    /**
+     * Связь один ко многим master->slaves[] (t.id = rel.t_id)
+     */
+    const HAS_MANY = 2;
+
     /** @var bool|Pdo */
     static private $_db = false;
     /** @var bool */
@@ -53,14 +68,6 @@ abstract class DbMap
         }
 
         return self::$_db;
-    }
-
-    /**
-     * @return bool
-     */
-    public function beforeValidate()
-    {
-        return true;
     }
 
     /**
@@ -135,6 +142,31 @@ abstract class DbMap
     }
 
     /**
+     * Возвращает связи
+     *
+     * @return array
+     */
+    public function relations()
+    {
+        return array();
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return mixed
+     */
+    function __get($name)
+    {
+        if (array_key_exists($name, $this->relations())) {
+            return $this->_getRelation($name);
+        }
+
+        return false;
+    }
+
+
+    /**
      * @return bool
      */
     public function validate()
@@ -158,11 +190,22 @@ abstract class DbMap
     /**
      * @return bool
      */
+    public function beforeValidate()
+    {
+        return true;
+    }
+
+    /**
+     * @return bool
+     */
     private function beforeSave()
     {
         return true;
     }
 
+    /**
+     * Деструктор
+     */
     public function __destruct()
     {
         if ($this->autoSaveChange) {
@@ -171,5 +214,56 @@ abstract class DbMap
                 $this->save();
             }
         }
+    }
+
+    private function _getRelation($relation_name)
+    {
+        $relation = $this->relations($relation_name);
+        /** @var DbMap $class */
+        $class  = $relation[1];
+        $result = false;
+        switch ($relation[0]) {
+            case self::HAS_MANY:
+                $sql    = 'select * from ' . $class::getTableName() . ' where ' . $relation[2] . ' = ?';
+                $result = $class::bySql($sql, [$this->id]);
+                break;
+            case self::HAS_ONE:
+                $sql    = 'select * from ' . $class::getTableName() . ' where ' . $relation[2] . ' = ?';
+                $result = $class::bySql($sql, [$this->id]);
+                $result = (isset($result[0])) ? $result[0] : [];
+                break;
+            case self::BELONG_TO:
+                $sql    = 'select * from ' . $class::getTableName() . ' where id = ?';
+                $field  = $result[2];
+                $result = $class::bySql($sql, [$this->$field]);
+                $result = (isset($result[0])) ? $result[0] : [];
+                break;
+            default:
+                throw new \Exception('Wrong relation type. 0_o');
+        }
+
+        return $result;
+    }
+
+    /**
+     * Возвращает массив моделей по запросу
+     *
+     * @param string $sql   запрос
+     * @param array  $param параметры для запроса
+     *
+     * @return DbMap[]
+     */
+    public static function bySql($sql, $param = array())
+    {
+        $result = self::getDb()->getResult($sql, $param);
+        $class  = get_called_class();
+        $models = [];
+        if (is_array($result)) {
+            foreach ($result as $row) {
+                $models[] = new $class(false, $row);
+            }
+        }
+
+        return $models;
     }
 }
