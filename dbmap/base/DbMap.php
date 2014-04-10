@@ -47,18 +47,19 @@ abstract class DbMap
      * @param bool  $isNew
      * @param array $attributes
      */
-    function __construct($isNew, $attributes)
+    function __construct($isNew = false, $attributes = [])
     {
         $this->_isNew = $isNew;
         if (!empty($attributes)) {
             $this->_initAttrubutes = $attributes;
             $this->setAttributes($attributes);
+        } else {
+            $this->_initAttrubutes = $this->getAttributes();
         }
     }
 
     /**
      * @throws \Exception
-     *
      * @return bool|Pdo
      */
     public static function getDb()
@@ -165,7 +166,6 @@ abstract class DbMap
         return false;
     }
 
-
     /**
      * @return bool
      */
@@ -233,16 +233,16 @@ abstract class DbMap
         switch ($relation[0]) {
             case self::HAS_MANY:
                 $sql    = 'select * from ' . $class::getTableName() . ' where ' . $field . ' = ?';
-                $result = $class::bySql($sql, [$this->id]);
+                $result = $class::getBySql($sql, [$this->id]);
                 break;
             case self::HAS_ONE:
                 $sql    = 'select * from ' . $class::getTableName() . ' where ' . $field . ' = ?';
-                $result = $class::bySql($sql, [$this->id]);
+                $result = $class::getBySql($sql, [$this->id]);
                 $result = (isset($result[0])) ? $result[0] : [];
                 break;
             case self::BELONG_TO:
                 $sql    = 'select * from ' . $class::getTableName() . ' where id = ?';
-                $result = $class::bySql($sql, [$this->$field]);
+                $result = $class::getBySql($sql, [$this->$field]);
                 $result = (isset($result[0])) ? $result[0] : [];
                 break;
             default:
@@ -260,17 +260,21 @@ abstract class DbMap
      *
      * @return DbMap[]
      */
-    public static function bySql($sql, $param = array())
+    public static function getBySql($sql, $param = array())
     {
         $result = self::getDb()->getResult($sql, $param);
         $class  = get_called_class();
-        $models = [];
-        if (is_array($result)) {
-            foreach ($result as $row) {
-                $models[] = new $class(false, $row);
-            }
-        }
+        $models = $result->fetchAll(\PDO::FETCH_CLASS, $class);
 
         return $models;
+    }
+
+    public static function getAll()
+    {
+        /** @var DbMap $class */
+        $class = get_called_class();
+        $sql   = 'select * from ' . $class::getTableName();
+
+        return self::getBySql($sql);
     }
 }

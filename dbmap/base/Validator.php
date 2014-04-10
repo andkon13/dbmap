@@ -8,7 +8,6 @@
 
 namespace dbmap\base;
 
-
 trait Validator
 {
     protected $_error = null;
@@ -19,5 +18,10 @@ trait Validator
     public function getLastError()
     {
         return $this->_error;
+    }
+
+    public function _validate($value)
+    {
+        return true;
     }
 } 

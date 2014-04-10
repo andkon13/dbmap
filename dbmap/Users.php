@@ -8,8 +8,8 @@
 
 namespace dbmap;
 
-
 use dbmap\base\DbMap;
+use dbmap\fields\Name;
 
 class Users extends DbMap
 {

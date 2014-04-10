@@ -15,7 +15,7 @@ trait String
 {
     use Validator;
 
-    public function validate($value, $length = 255)
+    public function _validate($value, $length = 255)
     {
         if (strlen($value) > $length) {
             $this->_error = 'string too long (limit ' . $length . ')';

@@ -8,14 +8,13 @@
 
 namespace dbmap\validators;
 
-
 use dbmap\base\Validator;
 
 trait Int
 {
     use Validator;
 
-    public function validate($value)
+    public function _validate($value)
     {
         $this->_error = null;
         $value        = intval($value);
@@ -27,4 +26,4 @@ trait Int
 
         return false;
     }
-} 
+}

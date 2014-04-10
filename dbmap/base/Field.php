@@ -11,8 +11,6 @@ namespace dbmap\base;
 
 trait Field
 {
-    public $errors = [];
-
     /**
      * @param string|DbMap $class
      *

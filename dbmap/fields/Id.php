@@ -24,24 +24,22 @@ trait Id
     /** @var  int */
     public $id;
 
-    public static function byId($id)
+    public static function getById($id)
     {
+        /** @var DbMap $class */
         $class  = get_called_class();
         $sql    = 'select * from ' . Field::getTable($class) . ' where id = ?';
-        $attrib = $class::getDb()->getRow($sql, [$id]);
-        if (!is_array($attrib)) {
+        $result = $class::getBySql($sql, [$id]);
+        if (!isset($result[0])) {
             return null;
         }
 
-        /** @var DbMap $class */
-        $class = new $class(false, $attrib);
-
-        return $class;
+        return array_pop($result);
     }
 
-    public function idValidator()
+    public function idValidator($id)
     {
-        if (!$this->validate($this->id)) {
+        if (!$this->_validate($id)) {
             $this->errors[] = $this->getLastError();
         }
 
