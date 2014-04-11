@@ -12,32 +12,28 @@ use dbmap\fields\Id;
 
 abstract class DbMap
 {
-    use Id;
+    use Id, Dummy;
 
+    /**
+     * Связь один к одному master->slave (t.id = rel.t_id)
+     */
+    const HAS_ONE = 1;
+    /**
+     * Связь один к одному slave->master (rel.t_id = t.id)
+     */
+    const BELONG_TO = 0;
+    /**
+     * Связь один ко многим master->slaves[] (t.id = rel.t_id)
+     */
+    const HAS_MANY = 2;
+    /** @var bool|Pdo */
+    static private $_db = false;
     /**
      * Будут ли произведена попытка сохранить данные при выгрузке объекта (__destruct)
      *
      * @var bool
      */
     public $autoSaveChange = false;
-
-    /**
-     * Связь один к одному master->slave (t.id = rel.t_id)
-     */
-    const HAS_ONE = 1;
-
-    /**
-     * Связь один к одному slave->master (rel.t_id = t.id)
-     */
-    const BELONG_TO = 0;
-
-    /**
-     * Связь один ко многим master->slaves[] (t.id = rel.t_id)
-     */
-    const HAS_MANY = 2;
-
-    /** @var bool|Pdo */
-    static private $_db = false;
     /** @var bool */
     private $_isNew = true;
     /** @var array */
@@ -56,47 +52,6 @@ abstract class DbMap
         } else {
             $this->_initAttrubutes = $this->getAttributes();
         }
-    }
-
-    /**
-     * @throws \Exception
-     * @return bool|Pdo
-     */
-    public static function getDb()
-    {
-        if (!self::$_db) {
-            self::$_db = Pdo::getInstance();
-        }
-
-        return self::$_db;
-    }
-
-    /**
-     * Сохраняет модель
-     *
-     * @return bool|string
-     */
-    public function save()
-    {
-        if (!$this->validate()) {
-            return false;
-        }
-
-        if (!$this->beforeSave()) {
-            return false;
-        }
-
-        $table = $this->getTableName();
-        if ($this->_isNew) {
-            $save     = $this->getDb()->insert($table, $this->getAttributes());
-            $this->id = $save;
-        } else {
-            $save = $this->getDb()->update($table, $this->getAttributes(), ['id' => $this->id]);
-        }
-
-        $this->_initAttrubutes = $this->getAttributes();
-
-        return $save;
     }
 
     /**
@@ -119,13 +74,6 @@ abstract class DbMap
     }
 
     /**
-     * return table name
-     *
-     * @return string
-     */
-    abstract static public function getTableName();
-
-    /**
      * Возвращает публичные атрибуты модели
      *
      * @return array
@@ -143,13 +91,25 @@ abstract class DbMap
     }
 
     /**
-     * Возвращает связи
+     * Возвращает все обекты модели
      *
-     * @return array
+     * @param int $limit  Лимит записей
+     * @param int $offset сколько записей пропустить
+     *
+     * @return DbMap[]
      */
-    public function relations()
+    public static function getAll($limit = 100, $offset = 0)
     {
-        return array();
+        /** @var DbMap $class */
+        $class = get_called_class();
+        $sql   = 'select * from ' . $class::getTableName();
+        $param = [];
+        if ($limit) {
+            $sql .= ' limit :offset, :limit';
+            $param = [':limit' => $limit, ':offset' => $offset];
+        }
+
+        return self::getBySql($sql, $param);
     }
 
     /**
@@ -167,53 +127,13 @@ abstract class DbMap
     }
 
     /**
-     * @return bool
+     * Возвращает связи
+     *
+     * @return array
      */
-    public function validate()
+    public function relations()
     {
-        if (!$this->beforeValidate()) {
-            return false;
-        }
-
-        $attributes = $this->getAttributes();
-        $result     = true;
-        foreach ($attributes as $field => $value) {
-            $validator_func = $field . 'Validator';
-            if (method_exists($this, $validator_func)) {
-                $result = ($result && $this->$validator_func($value));
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return bool
-     */
-    public function beforeValidate()
-    {
-        return true;
-    }
-
-    /**
-     * @return bool
-     */
-    private function beforeSave()
-    {
-        return true;
-    }
-
-    /**
-     * Деструктор
-     */
-    public function __destruct()
-    {
-        if ($this->autoSaveChange) {
-            $diff = array_diff($this->_initAttrubutes, $this->getAttributes());
-            if (count($diff)) {
-                $this->save();
-            }
-        }
+        return array();
     }
 
     /**
@@ -253,6 +173,13 @@ abstract class DbMap
     }
 
     /**
+     * return table name
+     *
+     * @return string
+     */
+    abstract static public function getTableName();
+
+    /**
      * Возвращает массив моделей по запросу
      *
      * @param string $sql   запрос
@@ -269,12 +196,79 @@ abstract class DbMap
         return $models;
     }
 
-    public static function getAll()
+    /**
+     * @throws \Exception
+     * @return bool|Pdo
+     */
+    public static function getDb()
     {
-        /** @var DbMap $class */
-        $class = get_called_class();
-        $sql   = 'select * from ' . $class::getTableName();
+        if (!self::$_db) {
+            self::$_db = Pdo::getInstance();
+        }
 
-        return self::getBySql($sql);
+        return self::$_db;
+    }
+
+    /**
+     * Деструктор
+     */
+    public function __destruct()
+    {
+        if ($this->autoSaveChange) {
+            $diff = array_diff($this->_initAttrubutes, $this->getAttributes());
+            if (count($diff)) {
+                $this->save();
+            }
+        }
+    }
+
+    /**
+     * Сохраняет модель
+     *
+     * @return bool|string
+     */
+    public function save()
+    {
+        if (!$this->validate()) {
+            return false;
+        }
+
+        if (!$this->beforeSave()) {
+            return false;
+        }
+
+        $table = $this->getTableName();
+        if ($this->_isNew) {
+            $save     = $this->getDb()->insert($table, $this->getAttributes());
+            $this->id = $save;
+        } else {
+            $save = $this->getDb()->update($table, $this->getAttributes(), ['id' => $this->id]);
+        }
+
+        $this->afterSave();
+        $this->_initAttrubutes = $this->getAttributes();
+
+        return $save;
+    }
+
+    /**
+     * @return bool
+     */
+    public function validate()
+    {
+        if (!$this->beforeValidate()) {
+            return false;
+        }
+
+        $attributes = $this->getAttributes();
+        $result     = true;
+        foreach ($attributes as $field => $value) {
+            $validator_func = $field . 'Validator';
+            if (method_exists($this, $validator_func)) {
+                $result = ($result && $this->$validator_func($value));
+            }
+        }
+
+        return $result;
     }
 }

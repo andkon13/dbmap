@@ -26,6 +26,21 @@ class Pdo extends \PDO
     }
 
     /**
+     * @param string $query
+     * @param array  $param
+     *
+     * @throws \Exception
+     * @return \PDOStatement
+     */
+    public static function getResult($query, $param = array())
+    {
+        $pdo = self::getInstance()->_PDO->prepare($query);
+        $pdo->execute($param);
+
+        return $pdo;
+    }
+
+    /**
      * @return bool|Pdo
      * @throws \Exception
      */
@@ -56,34 +71,6 @@ class Pdo extends \PDO
         }
 
         return self::$_instance;
-    }
-
-    /**
-     * @param string $query
-     * @param array  $param
-     *
-     * @throws \Exception
-     * @return \PDOStatement
-     */
-    public static function getResult($query, $param = array())
-    {
-        $pdo = self::getInstance()->_PDO->prepare($query);
-        $pdo->execute($param);
-
-        return $pdo;
-    }
-
-    /**
-     * @param string $query
-     * @param array  $param
-     *
-     * @return array
-     */
-    public static function getRow($query, $param = array())
-    {
-        $pdo = self::getResult($query, $param);
-
-        return $pdo->fetch(\PDO::FETCH_ASSOC);
     }
 
     /**
@@ -130,23 +117,5 @@ class Pdo extends \PDO
 
         return $this->execute($sql, $param);
 
-    }
-
-    /**
-     * @param $sql
-     * @param $param
-     *
-     * @return bool
-     * @throws \PDOException
-     */
-    private function execute($sql, $param)
-    {
-        try {
-            $res = $this->_PDO->prepare($sql)->execute($param);
-        } catch (Exception $e) {
-            throw new \PDOException($e);
-        }
-
-        return $res;
     }
 }
