@@ -24,7 +24,7 @@ trait Id
     /** @var  int */
     public $id;
 
-    public static function getById($id)
+    public static function findById($id)
     {
         /** @var DbMap $class */
         $class  = get_called_class();

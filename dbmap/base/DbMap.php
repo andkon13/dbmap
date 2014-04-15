@@ -15,15 +15,15 @@ abstract class DbMap
     use Id, Dummy;
 
     /**
-     * Связь один к одному master->slave (t.id = rel.t_id)
+     * Связь один к одному [self::HAS_ONE, 'RelClass', 'refField'] master->slave (t.id = rel.t_id)
      */
     const HAS_ONE = 1;
     /**
-     * Связь один к одному slave->master (rel.t_id = t.id)
+     * Связь один к одному [self::BELONG_TO, 'RelClass', 'thisField'] slave->master (rel.t_id = t.id)
      */
     const BELONG_TO = 0;
     /**
-     * Связь один ко многим master->slaves[] (t.id = rel.t_id)
+     * Связь один ко многим [self::HAS_MANY, 'RelClass', 'refField']  master->slaves[] (t.id = rel.t_id)
      */
     const HAS_MANY = 2;
     /** @var bool|Pdo */
@@ -173,18 +173,20 @@ abstract class DbMap
     }
 
     /**
-     * Возвращает мвязанные модели
+     * Возвращает связанные модели
      *
-     * @param string $relation_name ися связи
+*@param string $relation_name ися связи
+
      *
-     * @return DbMap|DbMap[]
+*@return DbMap|DbMap[]
      * @throws \Exception
      */
     private function _getRelation($relation_name)
     {
-        $relation = $this->relations($relation_name);
+        $relation = $this->relations()[$relation_name];
         /** @var DbMap $class */
         $class = $relation[1];
+        $class = (class_exists($class)) ? $class : $this->getNameSpace($this) . '\\' . $class;
         $field = $relation[2];
         switch ($relation[0]) {
             case self::HAS_MANY:
@@ -206,6 +208,20 @@ abstract class DbMap
         }
 
         return $result;
+    }
+
+    /**
+     * Возвращает неймспейс объекта
+     *
+     * @param mixed $object
+     *
+     * @return string
+     */
+    private function getNameSpace($object)
+    {
+        $reflect = new \ReflectionClass($object);
+
+        return $reflect->getNamespaceName();
     }
 
     /**

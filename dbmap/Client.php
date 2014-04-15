@@ -2,8 +2,8 @@
 /**
  * Created by PhpStorm.
  * User: andkon
- * Date: 07.04.14
- * Time: 0:17
+ * Date: 15.04.14
+ * Time: 17:17
  */
 
 namespace dbmap;
@@ -11,8 +11,10 @@ namespace dbmap;
 use dbmap\base\DbMap;
 use dbmap\fields\Name;
 
-class Users extends DbMap
+class Client extends DbMap
 {
+    use Name;
+
     /**
      * return table name
      *
@@ -20,13 +22,18 @@ class Users extends DbMap
      */
     static public function getTableName()
     {
-        return 'users';
+        return 'client';
     }
 
+    /**
+     * Возвращает связанные модели
+     *
+     * @return array
+     */
     public function relations()
     {
         return [
-            'Client' => [self::BELONG_TO, 'Client', 'client_id'],
+            'Users' => [self::HAS_MANY, 'Users', 'client_id'],
         ];
     }
 }

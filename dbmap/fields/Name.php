@@ -24,7 +24,7 @@ trait Name
      *
      * @return DbMap|null
      */
-    public static function getByName($name)
+    public static function findByName($name)
     {
         $result = self::_getResult($name);
         if (!isset($result[0])) {
@@ -32,12 +32,6 @@ trait Name
         }
 
         return array_pop($result);
-    }
-
-    public static function byNameAll($name)
-    {
-
-        return self::_getResult($name);
     }
 
     /**
@@ -55,5 +49,11 @@ trait Name
         $result = $class::getBySql($sql, [':name' => $name]);
 
         return $result;
+    }
+
+    public static function byNameAll($name)
+    {
+
+        return self::_getResult($name);
     }
 } 
