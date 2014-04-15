@@ -46,7 +46,7 @@ trait Name
         /** @var DbMap $class */
         $class  = get_called_class();
         $sql    = 'select * from ' . Field::getTable($class) . ' where name = :name';
-        $result = $class::getBySql($sql, [':name' => $name]);
+        $result = $class::findBySql($sql, [':name' => $name]);
 
         return $result;
     }

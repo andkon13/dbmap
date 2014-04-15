@@ -29,7 +29,7 @@ trait Id
         /** @var DbMap $class */
         $class  = get_called_class();
         $sql    = 'select * from ' . Field::getTable($class) . ' where id = ?';
-        $result = $class::getBySql($sql, [$id]);
+        $result = $class::findBySql($sql, [$id]);
         if (!isset($result[0])) {
             return null;
         }

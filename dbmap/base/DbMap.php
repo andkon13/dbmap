@@ -108,7 +108,7 @@ abstract class DbMap
             $sql .= ' limit ' . intval($offset) . ', ' . intval($limit);
         }
 
-        return self::getBySql($sql, $param);
+        return self::findBySql($sql, $param);
     }
 
     /**
@@ -126,7 +126,7 @@ abstract class DbMap
      *
      * @return DbMap[]
      */
-    public static function getBySql($sql, $param = array())
+    public static function findBySql($sql, $param = array())
     {
         $result = self::getDb()->getResult($sql, $param);
         $class  = get_called_class();
@@ -175,10 +175,9 @@ abstract class DbMap
     /**
      * Возвращает связанные модели
      *
-*@param string $relation_name ися связи
-
+     * @param string $relation_name ися связи
      *
-*@return DbMap|DbMap[]
+     * @return DbMap|DbMap[]
      * @throws \Exception
      */
     private function _getRelation($relation_name)
@@ -186,21 +185,21 @@ abstract class DbMap
         $relation = $this->relations()[$relation_name];
         /** @var DbMap $class */
         $class = $relation[1];
-        $class = (class_exists($class)) ? $class : $this->getNameSpace($this) . '\\' . $class;
+        $class = (class_exists($class)) ? $class : $this->_getNameSpace($this) . '\\' . $class;
         $field = $relation[2];
         switch ($relation[0]) {
             case self::HAS_MANY:
                 $sql    = 'select * from ' . $class::getTableName() . ' where ' . $field . ' = ?';
-                $result = $class::getBySql($sql, [$this->id]);
+                $result = $class::findBySql($sql, [$this->id]);
                 break;
             case self::HAS_ONE:
                 $sql    = 'select * from ' . $class::getTableName() . ' where ' . $field . ' = ?';
-                $result = $class::getBySql($sql, [$this->id]);
+                $result = $class::findBySql($sql, [$this->id]);
                 $result = (isset($result[0])) ? $result[0] : [];
                 break;
             case self::BELONG_TO:
                 $sql    = 'select * from ' . $class::getTableName() . ' where id = ?';
-                $result = $class::getBySql($sql, [$this->$field]);
+                $result = $class::findBySql($sql, [$this->$field]);
                 $result = (isset($result[0])) ? $result[0] : [];
                 break;
             default:
@@ -217,7 +216,7 @@ abstract class DbMap
      *
      * @return string
      */
-    private function getNameSpace($object)
+    private function _getNameSpace($object)
     {
         $reflect = new \ReflectionClass($object);
 
@@ -280,7 +279,8 @@ abstract class DbMap
         foreach ($attributes as $field => $value) {
             $validator_func = $field . 'Validator';
             if (method_exists($this, $validator_func)) {
-                $result = ($result && $this->$validator_func($value));
+                $result             = ($result && $this->$validator_func($value));
+                $attributes[$field] = $value;
             }
         }
 
