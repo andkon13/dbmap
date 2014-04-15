@@ -98,18 +98,54 @@ abstract class DbMap
      *
      * @return DbMap[]
      */
-    public static function getAll($limit = 100, $offset = 0)
+    public static function findAll($limit = 100, $offset = 0)
     {
         /** @var DbMap $class */
         $class = get_called_class();
         $sql   = 'select * from ' . $class::getTableName();
         $param = [];
         if ($limit) {
-            $sql .= ' limit :offset, :limit';
-            $param = [':limit' => $limit, ':offset' => $offset];
+            $sql .= ' limit ' . intval($offset) . ', ' . intval($limit);
         }
 
         return self::getBySql($sql, $param);
+    }
+
+    /**
+     * return table name
+     *
+     * @return string
+     */
+    abstract static public function getTableName();
+
+    /**
+     * Возвращает массив моделей по запросу
+     *
+     * @param string $sql   запрос
+     * @param array  $param параметры для запроса
+     *
+     * @return DbMap[]
+     */
+    public static function getBySql($sql, $param = array())
+    {
+        $result = self::getDb()->getResult($sql, $param);
+        $class  = get_called_class();
+        $models = $result->fetchAll(\PDO::FETCH_CLASS, $class);
+
+        return $models;
+    }
+
+    /**
+     * @throws \Exception
+     * @return bool|Pdo
+     */
+    public static function getDb()
+    {
+        if (!self::$_db) {
+            self::$_db = Pdo::getInstance();
+        }
+
+        return self::$_db;
     }
 
     /**
@@ -170,43 +206,6 @@ abstract class DbMap
         }
 
         return $result;
-    }
-
-    /**
-     * return table name
-     *
-     * @return string
-     */
-    abstract static public function getTableName();
-
-    /**
-     * Возвращает массив моделей по запросу
-     *
-     * @param string $sql   запрос
-     * @param array  $param параметры для запроса
-     *
-     * @return DbMap[]
-     */
-    public static function getBySql($sql, $param = array())
-    {
-        $result = self::getDb()->getResult($sql, $param);
-        $class  = get_called_class();
-        $models = $result->fetchAll(\PDO::FETCH_CLASS, $class);
-
-        return $models;
-    }
-
-    /**
-     * @throws \Exception
-     * @return bool|Pdo
-     */
-    public static function getDb()
-    {
-        if (!self::$_db) {
-            self::$_db = Pdo::getInstance();
-        }
-
-        return self::$_db;
     }
 
     /**
