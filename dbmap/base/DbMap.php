@@ -28,6 +28,7 @@ abstract class DbMap
     const HAS_MANY = 2;
     /** @var bool|Pdo */
     static private $_db = false;
+    private static $_with = [];
     /**
      * Будут ли произведена попытка сохранить данные при выгрузке объекта (__destruct)
      *
@@ -102,7 +103,8 @@ abstract class DbMap
     {
         /** @var DbMap $class */
         $class = get_called_class();
-        $sql   = 'select * from ' . $class::getTableName();
+        $sql = 'select * from ' . $class::getTableName() . ' t';
+        $sql = self::buildQueryWith($sql);
         $param = [];
         if ($limit) {
             $sql .= ' limit ' . intval($offset) . ', ' . intval($limit);
@@ -117,6 +119,63 @@ abstract class DbMap
      * @return string
      */
     abstract static public function getTableName();
+
+    private function buildQueryWith($sql)
+    {
+        if (!empty(self::$_with)) {
+            /** @var DbMap $class */
+            $class     = get_called_class();
+            $relations = $class::relations();
+            foreach (self::$_with as $relName) {
+                if (class_exists($relName)) {
+                    $relClass = $relName;
+                } else {
+                    $relClass = self::_getNameSpace($class) . '\\' . $relName;
+                }
+
+                $sql .= ' left join ' . $relClass::getTableName() . ' as ' . $relName . ' on ';
+                switch ($relations[$relName][0]) {
+                    case self::HAS_ONE:
+                        $sql .= 't.id=' . $relName . '.' . $relations[$relName][2];
+                        break;
+                    case self::HAS_MANY:
+                        $sql .= 't.id=' . $relName . '.' . $relations[$relName][2];
+                        break;
+                    case self::BELONG_TO:
+                        $sql .= 't.' . $relations[$relName][2] . ' = ' . $relName . '.id';
+                        break;
+                    default:
+                        throw new \Exception('Wrong relation type. 0_o');
+                }
+            }
+        }
+
+        return $sql;
+    }
+
+    /**
+     * Возвращает связи
+     *
+     * @return array
+     */
+    public function relations()
+    {
+        return array();
+    }
+
+    /**
+     * Возвращает неймспейс объекта
+     *
+     * @param mixed $object
+     *
+     * @return string
+     */
+    private function _getNameSpace($object)
+    {
+        $reflect = new \ReflectionClass($object);
+
+        return $reflect->getNamespaceName();
+    }
 
     /**
      * Возвращает массив моделей по запросу
@@ -149,6 +208,33 @@ abstract class DbMap
     }
 
     /**
+     * Добавляет какие связи будут в выборке при поиске
+     *
+     * @param array|string $relations название связи
+     *
+     * @return DbMap
+     */
+    public static function with($relations = array())
+    {
+        if (!is_array($relations)) {
+            $relations = [$relations];
+        }
+
+        /** @var DbMap $class */
+        $class = get_called_class();
+        $class = new $class();
+        foreach ($relations as $relName) {
+            if (array_key_exists($relName, $class::relations())) {
+                self::$_with[] = $relName;
+            }
+        }
+
+        self::$_with = array_unique(self::$_with);
+
+        return $class;
+    }
+
+    /**
      * @param string $name
      *
      * @return mixed
@@ -160,16 +246,6 @@ abstract class DbMap
         }
 
         return false;
-    }
-
-    /**
-     * Возвращает связи
-     *
-     * @return array
-     */
-    public function relations()
-    {
-        return array();
     }
 
     /**
@@ -207,20 +283,6 @@ abstract class DbMap
         }
 
         return $result;
-    }
-
-    /**
-     * Возвращает неймспейс объекта
-     *
-     * @param mixed $object
-     *
-     * @return string
-     */
-    private function _getNameSpace($object)
-    {
-        $reflect = new \ReflectionClass($object);
-
-        return $reflect->getNamespaceName();
     }
 
     /**
