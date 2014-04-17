@@ -51,6 +51,10 @@ abstract class DbMap
             $this->_initAttrubutes = $attributes;
             $this->setAttributes($attributes);
         } else {
+            if (!empty(self::$_with)) {
+                $this->__buildWhth();
+            }
+
             $this->_initAttrubutes = $this->getAttributes();
         }
     }
@@ -72,6 +76,13 @@ abstract class DbMap
         }
 
         return $this;
+    }
+
+    private function __buildWhth()
+    {
+        $vars = get_object_vars($this);
+        foreach ($vars as $attr => $val) {
+        }
     }
 
     /**
@@ -101,80 +112,13 @@ abstract class DbMap
      */
     public static function findAll($limit = 100, $offset = 0)
     {
-        /** @var DbMap $class */
-        $class = get_called_class();
-        $sql = 'select * from ' . $class::getTableName() . ' t';
-        $sql = self::buildQueryWith($sql);
+        $sql   = new QueryBuilder(get_called_class());
         $param = [];
         if ($limit) {
-            $sql .= ' limit ' . intval($offset) . ', ' . intval($limit);
+            $sql->limit(intval($offset) . ', ' . intval($limit));
         }
 
-        return self::findBySql($sql, $param);
-    }
-
-    /**
-     * return table name
-     *
-     * @return string
-     */
-    abstract static public function getTableName();
-
-    private function buildQueryWith($sql)
-    {
-        if (!empty(self::$_with)) {
-            /** @var DbMap $class */
-            $class     = get_called_class();
-            $relations = $class::relations();
-            foreach (self::$_with as $relName) {
-                if (class_exists($relName)) {
-                    $relClass = $relName;
-                } else {
-                    $relClass = self::_getNameSpace($class) . '\\' . $relName;
-                }
-
-                $sql .= ' left join ' . $relClass::getTableName() . ' as ' . $relName . ' on ';
-                switch ($relations[$relName][0]) {
-                    case self::HAS_ONE:
-                        $sql .= 't.id=' . $relName . '.' . $relations[$relName][2];
-                        break;
-                    case self::HAS_MANY:
-                        $sql .= 't.id=' . $relName . '.' . $relations[$relName][2];
-                        break;
-                    case self::BELONG_TO:
-                        $sql .= 't.' . $relations[$relName][2] . ' = ' . $relName . '.id';
-                        break;
-                    default:
-                        throw new \Exception('Wrong relation type. 0_o');
-                }
-            }
-        }
-
-        return $sql;
-    }
-
-    /**
-     * Возвращает связи
-     *
-     * @return array
-     */
-    public function relations()
-    {
-        return array();
-    }
-
-    /**
-     * Возвращает неймспейс объекта
-     *
-     * @param mixed $object
-     *
-     * @return string
-     */
-    private function _getNameSpace($object)
-    {
-        $reflect = new \ReflectionClass($object);
-
-        return $reflect->getNamespaceName();
+        return self::findBySql($sql->getQuery(), $param);
     }
 
     /**
@@ -235,6 +179,21 @@ abstract class DbMap
     }
 
     /**
+     * Возвращает связи
+     *
+     * @return array
+     */
+    public static function relations()
+    {
+        return array();
+    }
+
+    public static function getWith()
+    {
+        return self::$_with;
+    }
+
+    /**
      * @param string $name
      *
      * @return mixed
@@ -261,7 +220,7 @@ abstract class DbMap
         $relation = $this->relations()[$relation_name];
         /** @var DbMap $class */
         $class = $relation[1];
-        $class = (class_exists($class)) ? $class : $this->_getNameSpace($this) . '\\' . $class;
+        $class = (class_exists($class)) ? $class : $this->getNameSpace($this) . '\\' . $class;
         $field = $relation[2];
         switch ($relation[0]) {
             case self::HAS_MANY:
@@ -284,6 +243,27 @@ abstract class DbMap
 
         return $result;
     }
+
+    /**
+     * Возвращает неймспейс объекта
+     *
+     * @param mixed $object
+     *
+     * @return string
+     */
+    public static function getNameSpace($object)
+    {
+        $reflect = new \ReflectionClass($object);
+
+        return $reflect->getNamespaceName();
+    }
+
+    /**
+     * return table name
+     *
+     * @return string
+     */
+    abstract static public function getTableName();
 
     /**
      * Деструктор

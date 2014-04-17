@@ -30,7 +30,7 @@ class Client extends DbMap
      *
      * @return array
      */
-    public function relations()
+    public static function relations()
     {
         return [
             'Users' => [self::HAS_MANY, 'Users', 'client_id'],
