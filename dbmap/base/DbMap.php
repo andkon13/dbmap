@@ -18,25 +18,32 @@ abstract class DbMap
      * Связь один к одному [self::HAS_ONE, 'RelClass', 'refField'] master->slave (t.id = rel.t_id)
      */
     const HAS_ONE = 1;
+
     /**
      * Связь один к одному [self::BELONG_TO, 'RelClass', 'thisField'] slave->master (rel.t_id = t.id)
      */
     const BELONG_TO = 0;
+
     /**
      * Связь один ко многим [self::HAS_MANY, 'RelClass', 'refField']  master->slaves[] (t.id = rel.t_id)
      */
     const HAS_MANY = 2;
-    /** @var bool|Pdo */
-    static private $_db = false;
-    private static $_with = [];
+
     /**
      * Будут ли произведена попытка сохранить данные при выгрузке объекта (__destruct)
      *
      * @var bool
      */
     public $autoSaveChange = false;
+    public $_relations = [];
+
+    /** @var bool|Pdo */
+    static private $_db = false;
+    static private $_with = [];
+
     /** @var bool */
     private $_isNew = true;
+
     /** @var array */
     private $_initAttrubutes = [];
 
@@ -51,13 +58,16 @@ abstract class DbMap
             $this->_initAttrubutes = $attributes;
             $this->setAttributes($attributes);
         } else {
-            if (!empty(self::$_with)) {
-                $this->__buildWhth();
-            }
-
             $this->_initAttrubutes = $this->getAttributes();
         }
     }
+
+    /**
+     * return table name
+     *
+     * @return string
+     */
+    abstract static public function getTableName();
 
     /**
      * Устанавливает атрибуты
@@ -76,13 +86,6 @@ abstract class DbMap
         }
 
         return $this;
-    }
-
-    private function __buildWhth()
-    {
-        $vars = get_object_vars($this);
-        foreach ($vars as $attr => $val) {
-        }
     }
 
     /**
@@ -127,13 +130,51 @@ abstract class DbMap
      * @param string $sql   запрос
      * @param array  $param параметры для запроса
      *
+     * @throws \Exception
      * @return DbMap[]
      */
     public static function findBySql($sql, $param = array())
     {
+        /** @var DbMap $models */
         $result = self::getDb()->getResult($sql, $param);
-        $class  = get_called_class();
+        /** @var DbMap $models */
+        $class = get_called_class();
+        /** @var DbMap[] $models */
         $models = $result->fetchAll(\PDO::FETCH_CLASS, $class);
+        if (!empty(self::getWith())) {
+            $relModels = [];
+            $relations = $class::relations();
+            foreach (self::getWith() as $relName) {
+                if (class_exists($relName)) {
+                    $relClass = $relName;
+                } else {
+                    $relClass = $class::getNameSpace($class) . '\\' . $relName;
+                }
+
+                $query = new QueryBuilder($relClass);
+                if ($relations[$relName][0] != self::BELONG_TO) {
+                    $keys = self::_getKeys($models);
+                    $query->where($relations[$relName][2] . ' in (' . implode(', ', array_keys($keys)) . ')');
+                } else {
+                    $keys = self::_getKeys($models, $relations[$relName][2]);
+                    $query->where($relations[$relName][2] . ' in (' . implode(', ', array_keys($keys)) . ')');
+                }
+
+                $relModels[$relName] = self::getDb()->getResult($query->getQuery(false))->fetchAll(\PDO::FETCH_CLASS, $relClass);
+            }
+        }
+
+        foreach ($relModels as $relName => $relClass) {
+            $field = $relations[$relName][2];
+            foreach ($relClass as $class) {
+                $key = $keys[$class->$field];
+                if ($relations[$relName][0] !== self::HAS_MANY) {
+                    $models[$key]->_relations[$relName] = $class;
+                } else {
+                    $models[$key]->_relations[$relName][] = $class;
+                }
+            }
+        }
 
         return $models;
     }
@@ -188,9 +229,29 @@ abstract class DbMap
         return array();
     }
 
+    /**
+     * @return array
+     */
     public static function getWith()
     {
         return self::$_with;
+    }
+
+    /**
+     * @param DbMap[] $models
+     *
+     * @param string  $field
+     *
+     * @return array
+     */
+    private static function _getKeys($models, $field = 'id')
+    {
+        $keys = [];
+        foreach ($models as $key => $model) {
+            $keys[$model->$field] = $key;
+        }
+
+        return $keys;
     }
 
     /**
@@ -217,6 +278,10 @@ abstract class DbMap
      */
     private function _getRelation($relation_name)
     {
+        if (array_key_exists($relation_name, $this->_relations)) {
+            return $this->_relations[$relation_name];
+        }
+
         $relation = $this->relations()[$relation_name];
         /** @var DbMap $class */
         $class = $relation[1];
@@ -257,13 +322,6 @@ abstract class DbMap
 
         return $reflect->getNamespaceName();
     }
-
-    /**
-     * return table name
-     *
-     * @return string
-     */
-    abstract static public function getTableName();
 
     /**
      * Деструктор
