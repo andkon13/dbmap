@@ -23,10 +23,10 @@ class Users extends DbMap
         return 'users';
     }
 
-    public function relations()
+    public static function relations()
     {
         return [
-            'Client' => [self::BELONG_TO, 'Client', 'client_id'],
+            'Client' => [self::HAS_MANY, 'Client', 'user_id'],
         ];
     }
 }
