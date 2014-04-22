@@ -30,9 +30,9 @@ class QueryBuilder
     }
 
     /**
-     * Возвращает sql запрос
+     * Р’РѕР·РІСЂР°С‰Р°РµС‚ sql Р·Р°РїСЂРѕСЃ
      *
-     * @return string
+*@return string
      */
     public function getQuery()
     {
@@ -61,11 +61,13 @@ class QueryBuilder
     }
 
     /**
-     * Добавляет жоины
+     * Р”РѕР±Р°РІР»СЏРµС‚ Р¶РѕРёРЅС‹
      *
-     * @param string $join строка будет вставлена в join
-     *
-     * @return $this
+     * @param string $join СЃС‚СЂРѕРєР° Р±СѓРґРµС‚ РІСЃС‚Р°РІР»РµРЅР° РІ join
+
+
+*
+*@return $this
      */
     public function addJoin($join)
     {
@@ -75,7 +77,7 @@ class QueryBuilder
     }
 
     /**
-     * Параметры группировки
+     * РџР°СЂР°РјРµС‚СЂС‹ РіСЂСѓРїРїРёСЂРѕРІРєРё
      *
      * @param string $group
      *
@@ -114,7 +116,7 @@ class QueryBuilder
     }
 
     /**
-     * Добавление параметров выборки
+     * Р”РѕР±Р°РІР»РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ РІС‹Р±РѕСЂРєРё
      *
      * @param string $where
      * @param string $connention and|or
