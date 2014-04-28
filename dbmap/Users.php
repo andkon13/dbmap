@@ -11,6 +11,12 @@ namespace dbmap;
 use dbmap\base\DbMap;
 use dbmap\fields\Name;
 
+/**
+ * Class Users
+ *
+ * @package dbmap
+ * @property Client[] $Client
+ */
 class Users extends DbMap
 {
     /**
@@ -26,7 +32,7 @@ class Users extends DbMap
     public static function relations()
     {
         return [
-            'Client' => [self::HAS_MANY, 'Client', 'user_id'],
+            'Client' => [self::MANY_MANY, 'Client', 'user_client', 'user_id', 'client_id'],
         ];
     }
 }

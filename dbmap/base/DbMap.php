@@ -30,17 +30,20 @@ abstract class DbMap
     const HAS_MANY = 2;
 
     /**
+     * Связь многие ко многим [self::MANY_MANY, 'RelClass', 'crossTable', 'masterIdField', 'relIdField']
+     * master->slaves[] (t.id = crossTab.masterId and crossTab.relId = re.id)
+     */
+    const MANY_MANY = 3;
+    /** @var bool|Pdo */
+    static private $_db = false;
+    static private $_with = [];
+    /**
      * Будут ли произведена попытка сохранить данные при выгрузке объекта (__destruct)
      *
      * @var bool
      */
     public $autoSaveChange = false;
     public $_relations = [];
-
-    /** @var bool|Pdo */
-    static private $_db = false;
-    static private $_with = [];
-
     /** @var bool */
     private $_isNew = true;
 
@@ -61,13 +64,6 @@ abstract class DbMap
             $this->_initAttrubutes = $this->getAttributes();
         }
     }
-
-    /**
-     * return table name
-     *
-     * @return string
-     */
-    abstract static public function getTableName();
 
     /**
      * Устанавливает атрибуты
@@ -152,26 +148,50 @@ abstract class DbMap
                 }
 
                 $query = new QueryBuilder($relClass);
-                if ($relations[$relName][0] != self::BELONG_TO) {
+                if (!in_array($relations[$relName][0], [self::BELONG_TO, self::MANY_MANY])) {
                     $keys = self::_getKeys($models);
                     $query->where($relations[$relName][2] . ' in (' . implode(', ', array_keys($keys)) . ')');
+                } else if ($relations[$relName][0] == self::MANY_MANY) {
+                    $keys = self::_getKeys($models);
+                    $query
+                        ->select('t.*, rel.' . $relations[$relName][3] . ' as ' . $relations[$relName][2])
+                        ->addJoin(
+                            'join ' . $relations[$relName][2] . ' rel on rel.' . $relations[$relName][4] . ' = t.id'
+                        )
+                        ->where('rel.' . $relations[$relName][3] . ' in (' . implode(',', array_keys($keys)) . ')');
                 } else {
                     $keys = self::_getKeys($models, $relations[$relName][2]);
                     $query->where($relations[$relName][2] . ' in (' . implode(', ', array_keys($keys)) . ')');
                 }
 
-                $relModels[$relName] = self::getDb()->getResult($query->getQuery(false))->fetchAll(\PDO::FETCH_CLASS, $relClass);
+                $relModels[$relName] = self::getDb()
+                    ->getResult($query->getQuery(false))
+                    ->fetchAll(\PDO::FETCH_CLASS, $relClass);
             }
-        }
 
-        foreach ($relModels as $relName => $relClass) {
-            $field = $relations[$relName][2];
-            foreach ($relClass as $class) {
-                $key = $keys[$class->$field];
-                if ($relations[$relName][0] !== self::HAS_MANY) {
-                    $models[$key]->_relations[$relName] = $class;
+            foreach ($relModels as $relName => $relClass) {
+                if (count($relClass)) {
+                    $field = $relations[$relName][2];
+                    foreach ($relClass as $class) {
+                        $key = $keys[$class->$field];
+                        if (!in_array($relations[$relName][0], [self::HAS_MANY, self::MANY_MANY])) {
+                            $models[$key]->_relations[$relName] = $class;
+                        } else {
+                            if ($relations[$relName][0] == self::MANY_MANY) {
+                                unset($class->$field);
+                            }
+
+                            $models[$key]->_relations[$relName][] = $class;
+                        }
+                    }
                 } else {
-                    $models[$key]->_relations[$relName][] = $class;
+                    foreach ($models as $key => $model) {
+                        if (!in_array($relations[$relName][0], [self::HAS_MANY, self::MANY_MANY])) {
+                            $models[$key]->_relations[$relName] = null;
+                        } else {
+                            $models[$key]->_relations[$relName] = [];
+                        }
+                    }
                 }
             }
         }
@@ -193,11 +213,35 @@ abstract class DbMap
     }
 
     /**
+     * @return array
+     */
+    public static function getWith()
+    {
+        return self::$_with;
+    }
+
+    /**
+     * @param DbMap[] $models
+     * @param string  $field
+     *
+     * @return array
+     */
+    private static function _getKeys($models, $field = 'id')
+    {
+        $keys = [];
+        foreach ($models as $key => $model) {
+            $keys[$model->$field] = $key;
+        }
+
+        return $keys;
+    }
+
+    /**
      * Добавляет какие связи будут в выборке при поиске
      *
      * @param array|string $relations название связи
      *
-     * @return DbMap
+     *@return DbMap
      */
     public static function with($relations = array())
     {
@@ -230,34 +274,9 @@ abstract class DbMap
     }
 
     /**
-     * @return array
-     */
-    public static function getWith()
-    {
-        return self::$_with;
-    }
-
-    /**
-     * @param DbMap[] $models
-     *
-     * @param string  $field
-     *
-     * @return array
-     */
-    private static function _getKeys($models, $field = 'id')
-    {
-        $keys = [];
-        foreach ($models as $key => $model) {
-            $keys[$model->$field] = $key;
-        }
-
-        return $keys;
-    }
-
-    /**
      * @param string $name
      *
-     * @return mixed
+     *@return mixed
      */
     function __get($name)
     {
@@ -302,6 +321,14 @@ abstract class DbMap
                 $result = $class::findBySql($sql, [$this->$field]);
                 $result = (isset($result[0])) ? $result[0] : [];
                 break;
+            case self::MANY_MANY:
+                $sql    = '
+                    select t.* from ' . $class::getTableName() . ' t
+                    join ' . $relation[2] . ' rel on t.id=rel.' . $relation[4] . '
+                    where rel.' . $relation[3] . ' = ?
+                ';
+                $result = $class::findBySql($sql, [$this->id]);
+                break;
             default:
                 throw new \Exception('Wrong relation type. 0_o');
         }
@@ -314,7 +341,7 @@ abstract class DbMap
      *
      * @param mixed $object
      *
-     * @return string
+*@return string
      */
     public static function getNameSpace($object)
     {
@@ -322,6 +349,13 @@ abstract class DbMap
 
         return $reflect->getNamespaceName();
     }
+
+    /**
+     * return table name
+     *
+     * @return string
+     */
+    abstract static public function getTableName();
 
     /**
      * Деструктор
