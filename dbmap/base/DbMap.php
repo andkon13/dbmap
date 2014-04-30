@@ -238,10 +238,11 @@ abstract class DbMap
 
     /**
      * Добавляет какие связи будут в выборке при поиске
+
      *
-     * @param array|string $relations название связи
+*@param array|string $relations название связи
      *
-     *@return DbMap
+     * @return DbMap
      */
     public static function with($relations = array())
     {
@@ -276,7 +277,7 @@ abstract class DbMap
     /**
      * @param string $name
      *
-     *@return mixed
+     * @return mixed
      */
     function __get($name)
     {
@@ -285,6 +286,13 @@ abstract class DbMap
         }
 
         return false;
+    }
+
+    function __set($name, $value)
+    {
+        if (array_key_exists($name, $this->relations())) {
+            $this->_setRelation($name, $value);
+        }
     }
 
     /**
@@ -338,10 +346,11 @@ abstract class DbMap
 
     /**
      * Возвращает неймспейс объекта
+
      *
-     * @param mixed $object
+*@param mixed $object
      *
-*@return string
+     * @return string
      */
     public static function getNameSpace($object)
     {
@@ -356,6 +365,35 @@ abstract class DbMap
      * @return string
      */
     abstract static public function getTableName();
+
+    /**
+     * @param $name
+     * @param $value
+     *
+     * @return void
+     */
+    private function _setRelation($name, $value)
+    {
+        /** @var DbMap $class */
+        $class_name = $this->relations()[$name][1];
+        if (!class_exists($class_name)) {
+            $class = $this->getNameSpace($this) . '\\' . $class_name;
+            if (!class_exists($class)) {
+                throw new \Exception('Class ' . $class_name . ' not found');
+            }
+        } else {
+            $class = $class_name;
+        }
+
+        if (!$value instanceof DbMap && is_int($value)) {
+            $value = $class::findById($value);
+        }
+
+        if (!$value instanceof DbMap) {
+            throw new \Exception('Model ' . $class . '->id = ' . $value . ' not exist');
+        }
+
+    }
 
     /**
      * Деструктор
