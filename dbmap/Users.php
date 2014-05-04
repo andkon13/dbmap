@@ -32,7 +32,8 @@ class Users extends DbMap
     public static function relations()
     {
         return [
-            'Client' => [self::MANY_MANY, 'Client', 'user_client', 'user_id', 'client_id'],
+            //'Client' => [self::MANY_MANY, 'Client', 'user_client', 'user_id', 'client_id'],
+            'Client' => [self::HAS_ONE, 'Client', 'user_id'],
         ];
     }
 }

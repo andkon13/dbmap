@@ -111,11 +111,26 @@ class Pdo extends \PDO
             $param[':w_' . $field] = $value;
         }
 
-        $set   = implode(', ', $set);
-        $where = implode(' and ', $where);
-        $sql   = 'update ' . $table . ' set ' . $set . ' where ' . $where;
+        if (!empty($set)) {
+            $set   = implode(', ', $set);
+            $where = implode(' and ', $where);
+            $sql   = 'update ' . $table . ' set ' . $set . ' where ' . $where;
 
-        return $this->execute($sql, $param);
+            return $this->execute($sql, $param);
+        }
 
+        return true;
+    }
+
+    /**
+     * @param string $sql
+     * @param array  $param
+     *
+     * @return bool
+     * @throws \Exception
+     */
+    public function execute($sql, $param = [])
+    {
+        return $this->getInstance()->_PDO->prepare($sql)->execute($param);
     }
 }
