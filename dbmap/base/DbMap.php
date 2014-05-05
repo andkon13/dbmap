@@ -68,6 +68,9 @@ abstract class DbMap
      */
     private $_dontSaveProperty = ['id', '_dontSaveProperty', '_relations', 'autoSaveChange'];
 
+    /** @var array */
+    private $_errors = [];
+
     /**
      * @param bool  $isNew
      * @param array $attributes
@@ -475,7 +478,7 @@ abstract class DbMap
             $save = $this->getDb()->update($table, $this->getAttributes(), ['id' => $this->id]);
         }
 
-        if(!$save){
+        if (!$save) {
             throw new \Exception($this->getDb()->errorInfo());
         }
 
@@ -498,12 +501,18 @@ abstract class DbMap
             return false;
         }
 
-        $attributes = $this->getAttributes();
-        $result     = true;
+        $attributes    = $this->getAttributes();
+        $this->_errors = [];
+        $result        = true;
         foreach ($attributes as $field => $value) {
             $validator_func = $field . 'Validator';
             if (method_exists($this, $validator_func)) {
-                $result             = ($result && $this->$validator_func($value));
+                $field_result = $this->$validator_func($value);
+                if (!$field_result) {
+                    $this->_errors[$field][] = $this->getLastError();
+                }
+
+                $result = ($result && $field_result);
                 $attributes[$field] = $value;
             }
         }
@@ -537,5 +546,37 @@ abstract class DbMap
                 $rels->save();
             }
         }
+    }
+
+    /**
+     * Возвращает ошибки модели
+     *
+     * @param string|null $field название поля по которому вернуть ошибки или возвращает ошибки всех полей
+     *
+     * @return array|null
+     */
+    public function getErrors($field = null)
+    {
+        if ($field) {
+            return ($this->hasErrors($field)) ? $this->_errors[$field] : null;
+        }
+
+        return ($this->hasErrors()) ? $this->_errors : [];
+    }
+
+    /**
+     * Проверяет есть ли ошибки
+     *
+     * @param string|null $field имя проверяемого поля
+     *
+     * @return bool
+     */
+    public function hasErrors($field = null)
+    {
+        if ($field) {
+            return isset($this->_errors[$field]);
+        }
+
+        return !empty($this->_errors);
     }
 }

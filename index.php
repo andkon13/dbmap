@@ -4,5 +4,6 @@ include_once 'dbmap/autoloader.php';
 $client      = \dbmap\Client::findById(1);
 $client->user_id = 'dsfsd';
 $a = $client->validate();
-$a = $client->getLastError();
+$a = $client->hasErrors('user_id');
+$a = $client->getErrors('user_id');
 $a           = 1;
