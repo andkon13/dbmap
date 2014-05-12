@@ -336,28 +336,27 @@ abstract class DbMap
         $class = $relation[1];
         $class = (class_exists($class)) ? $class : $this->getNameSpace($this) . '\\' . $class;
         $field = $relation[2];
+        $sql = new QueryBuilder($class);
         switch ($relation[0]) {
             case self::HAS_MANY:
-                $sql    = 'select * from ' . $class::getTableName() . ' where ' . $field . ' = ?';
-                $result = $class::findBySql($sql, [$this->id]);
+                $sql->addWhere($field . ' = ?');
+                $result = $class::findBySql($sql->getQuery(), [$this->id]);
                 break;
             case self::HAS_ONE:
-                $sql    = 'select * from ' . $class::getTableName() . ' where ' . $field . ' = ?';
-                $result = $class::findBySql($sql, [$this->id]);
+                $sql->addWhere($field . ' = ?');
+                $result = $class::findBySql($sql->getQuery(), [$this->id]);
                 $result = (isset($result[0])) ? $result[0] : [];
                 break;
             case self::BELONG_TO:
-                $sql    = 'select * from ' . $class::getTableName() . ' where id = ?';
-                $result = $class::findBySql($sql, [$this->$field]);
+                $sql->addWhere('id = ?');
+                $result = $class::findBySql($sql->getQuery(), [$this->$field]);
                 $result = (isset($result[0])) ? $result[0] : [];
                 break;
             case self::MANY_MANY:
-                $sql    = '
-                    select t.* from ' . $class::getTableName() . ' t
-                    join ' . $relation[2] . ' rel on t.id=rel.' . $relation[4] . '
-                    where rel.' . $relation[3] . ' = ?
-                ';
-                $result = $class::findBySql($sql, [$this->id]);
+                $sql->select('t.*')
+                    ->addJoin('join' . $relation[2] . ' rel on t.id.rel.' . $relation[4])
+                    ->addWhere('rel.' . $relation[3] . ' = ?');
+                $result = $class::findBySql($sql->getQuery(), [$this->id]);
                 break;
             default:
                 throw new \Exception('Wrong relation type. 0_o');
@@ -379,13 +378,6 @@ abstract class DbMap
 
         return $reflect->getNamespaceName();
     }
-
-    /**
-     * return table name
-     *
-     * @return string
-     */
-    abstract static public function getTableName();
 
     /**
      * @param $name
@@ -512,13 +504,20 @@ abstract class DbMap
                     $this->_errors[$field][] = $this->getLastError();
                 }
 
-                $result = ($result && $field_result);
+                $result             = ($result && $field_result);
                 $attributes[$field] = $value;
             }
         }
 
         return $result;
     }
+
+    /**
+     * return table name
+     *
+     * @return string
+     */
+    abstract static public function getTableName();
 
     private function _saveRelations()
     {
