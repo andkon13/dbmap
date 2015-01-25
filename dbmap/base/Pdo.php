@@ -8,7 +8,11 @@
 
 namespace dbmap\base;
 
-
+/**
+ * Class Pdo
+ *
+ * @package dbmap\base
+ */
 class Pdo extends \PDO
 {
     private static $_instance = false;
@@ -20,6 +24,11 @@ class Pdo extends \PDO
      */
     private $_PDO;
 
+    /**
+     * @inheritdoc
+     *
+     * @param $pdo
+     */
     final public function __construct($pdo)
     {
         $this->_PDO = $pdo;
@@ -96,6 +105,27 @@ class Pdo extends \PDO
         return false;
     }
 
+    /**
+     * @param string $sql
+     * @param array  $param
+     *
+     * @return bool
+     * @throws \Exception
+     */
+    public function execute($sql, $param = [])
+    {
+        return $this->getInstance()->_PDO->prepare($sql)->execute($param);
+    }
+
+    /**
+     * Обновляет записи в базе
+     *
+     * @param $table
+     * @param $attributes
+     * @param $filter_params
+     *
+     * @return bool
+     */
     public function update($table, $attributes, $filter_params)
     {
         $set   = [];
@@ -120,17 +150,5 @@ class Pdo extends \PDO
         }
 
         return true;
-    }
-
-    /**
-     * @param string $sql
-     * @param array  $param
-     *
-     * @return bool
-     * @throws \Exception
-     */
-    public function execute($sql, $param = [])
-    {
-        return $this->getInstance()->_PDO->prepare($sql)->execute($param);
     }
 }

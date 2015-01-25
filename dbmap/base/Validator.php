@@ -7,21 +7,30 @@
  */
 
 namespace dbmap\base;
-
-trait Validator
+/**
+ * Class Validator
+ *
+ * @package dbmap\base
+ */
+abstract class Validator
 {
-    protected $_error = null;
+    protected static $error = null;
 
     /**
      * @return null|string
      */
-    public function getLastError()
+    public static function getLastError()
     {
-        return $this->_error;
+        return self::$error;
     }
 
-    public function _validate($value)
-    {
-        return true;
-    }
-} 
+    /**
+     * Проверяет значение
+     *
+     * @param mixed      $value
+     * @param null|mixed $options
+     *
+     * @return bool
+     */
+    abstract static public function validate(&$value, $options = null);
+}

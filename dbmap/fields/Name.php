@@ -11,10 +11,18 @@ namespace dbmap\fields;
 use dbmap\base\DbMap;
 use dbmap\base\Field;
 
+/**
+ * Class Name
+ *
+ * @package dbmap\fields
+ */
 trait Name
 {
     use Field;
 
+    /**
+     * @var
+     */
     public $name;
 
     /**
@@ -26,7 +34,7 @@ trait Name
      */
     public static function findByName($name)
     {
-        $result = self::_getResult($name);
+        $result = self::getResult($name, 1);
         if (!isset($result[0])) {
             return null;
         }
@@ -41,19 +49,25 @@ trait Name
      *
      * @return \dbmap\base\DbMap[]
      */
-    private static function _getResult($name)
+    private static function getResult($name, $limit = null)
     {
         /** @var DbMap $class */
-        $class  = get_called_class();
-        $sql    = 'select * from ' . Field::getTable($class) . ' where name = :name';
+        $class = get_called_class();
+        $sql   = 'select * from ' . self::getTableName() . ' where name = :name';
+        $sql .= ($limit) ? ' limit 0, ' . $limit : '';
         $result = $class::findBySql($sql, [':name' => $name]);
 
         return $result;
     }
 
-    public static function byNameAll($name)
+    /**
+     * @param $name
+     *
+     * @return \dbmap\base\DbMap[]
+     */
+    public static function findByNameAll($name)
     {
 
-        return self::_getResult($name);
+        return self::getResult($name);
     }
-} 
+}

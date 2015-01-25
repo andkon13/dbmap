@@ -8,6 +8,11 @@
 
 namespace dbmap\base;
 
+/**
+ * Class QueryBuilder
+ *
+ * @package dbmap\base
+ */
 class QueryBuilder
 {
     private $_select = 't.*';
@@ -32,7 +37,7 @@ class QueryBuilder
     /**
      * Возвращает sql запрос
      *
-*@return string
+     * @return string
      */
     public function getQuery()
     {
@@ -62,12 +67,11 @@ class QueryBuilder
 
     /**
      * Добавляет жоины
+
      *
-     * @param string $join строка будет вставлена в join
-
-
-*
-*@return $this
+*@param string $join строка будет вставлена в join
+     *
+     * @return $this
      */
     public function addJoin($join)
     {

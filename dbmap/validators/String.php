@@ -8,21 +8,32 @@
 
 namespace dbmap\validators;
 
-
 use dbmap\base\Validator;
 
-trait String
+/**
+ * Class String
+ *
+ * @package dbmap\validators
+ */
+class String extends Validator
 {
-    use Validator;
-
-    public function _validate($value, $length = 255)
+    /**
+     * @inheritdoc
+     *
+     * @param mixed $value
+     * @param int   $length
+     *
+     * @return bool
+     */
+    public static function validate(&$value, $length = 255)
     {
+        self::$error = null;
         if (strlen($value) > $length) {
-            $this->_error = 'string too long (limit ' . $length . ')';
+            self::$error = 'string too long (limit ' . $length . ')';
 
             return false;
         }
 
         return true;
     }
-} 
+}

@@ -19,16 +19,21 @@ use dbmap\validators\Int;
  */
 trait Id
 {
-    use Field, Int;
+    use Field;
 
     /** @var  int */
     public $id;
 
+    /**
+     * @param $id
+     *
+     * @return mixed|null
+     */
     public static function findById($id)
     {
         /** @var DbMap $class */
         $class  = get_called_class();
-        $sql    = 'select * from ' . Field::getTable($class) . ' where id = ?';
+        $sql = 'select * from ' . self::getTableName() . ' where id = ?';
         $result = $class::findBySql($sql, [$id]);
         if (!isset($result[0])) {
             return null;
@@ -37,10 +42,15 @@ trait Id
         return array_pop($result);
     }
 
+    /**
+     * @param $id
+     *
+     * @return bool
+     */
     public function idValidator($id)
     {
-        if (!$this->_validate($id)) {
-            $this->errors[] = $this->getLastError();
+        if (Int::validate($id)) {
+            $this->errors[] = Int::getLastError();
         }
 
         return true;

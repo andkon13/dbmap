@@ -7,7 +7,7 @@
  */
 return [
     'host'      => 'localhost',
-    'dbname'    => 'tmp',
+    'dbname' => 'wmsend',
     'user'      => 'root',
     'pass'      => '123',
     'character' => 'utf8',

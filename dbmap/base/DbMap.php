@@ -10,6 +10,11 @@ namespace dbmap\base;
 
 use dbmap\fields\Id;
 
+/**
+ * Class DbMap
+ *
+ * @package dbmap\base
+ */
 abstract class DbMap
 {
     use Id, Dummy;
@@ -77,6 +82,7 @@ abstract class DbMap
      */
     function __construct($isNew = false, $attributes = [])
     {
+        $isNew = (!count($attributes));
         $this->_isNew = $isNew;
         if (!empty($attributes)) {
             $this->_initAttrubutes = $attributes;
@@ -160,7 +166,8 @@ abstract class DbMap
         $class = get_called_class();
         /** @var DbMap[] $models */
         $models = $result->fetchAll(\PDO::FETCH_CLASS, $class);
-        if (!empty(self::getWith())) {
+        $withs = self::getWith();
+        if (!empty($withs)) {
             $relModels = [];
             $relations = $class::relations();
             foreach (self::getWith() as $relName) {
@@ -310,6 +317,15 @@ abstract class DbMap
         return false;
     }
 
+    /**
+     * @inheritdoc
+     *
+     * @param string $name
+     * @param mixed  $value
+     *
+     * @return void
+     * @throws \Exception
+     */
     function __set($name, $value)
     {
         if (array_key_exists($name, $this->relations())) {
@@ -385,7 +401,10 @@ abstract class DbMap
      *
      * @return string
      */
-    abstract static public function getTableName();
+    static public function getTableName()
+    {
+        throw new \Exception(500, 'Please override ' . get_called_class() . '::' . __FUNCTION__);
+    }
 
     /**
      * @param $name

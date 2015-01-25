@@ -8,18 +8,11 @@
 
 namespace dbmap\base;
 
-
+/**
+ * Class Field
+ *
+ * @package dbmap\base
+ */
 trait Field
 {
-    /**
-     * @param string|DbMap $class
-     *
-     * @return mixed
-     */
-    public static function getTable($class)
-    {
-        $table = $class::getTableName();
-
-        return $table;
-    }
-} 
+}

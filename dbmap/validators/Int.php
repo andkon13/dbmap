@@ -10,13 +10,24 @@ namespace dbmap\validators;
 
 use dbmap\base\Validator;
 
-trait Int
+/**
+ * Class Int
+ *
+ * @package dbmap\validators
+ */
+class Int extends Validator
 {
-    use Validator;
-
-    public function _validate(&$value)
+    /**
+     * @inheritdoc
+     *
+     * @param mixed $value
+     * @param null  $options
+     *
+     * @return bool
+     */
+    public static function validate(&$value, $options = null)
     {
-        $this->_error = null;
+        self::$error = null;
         $valid_value = filter_var($value, FILTER_VALIDATE_INT);
         if ($valid_value !== false) {
             $value = $valid_value;
@@ -24,7 +35,7 @@ trait Int
             return true;
         }
 
-        $this->_error = 'is not integer';
+        self::$error = 'is not integer';
 
         return false;
     }

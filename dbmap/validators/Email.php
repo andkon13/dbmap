@@ -10,21 +10,32 @@ namespace dbmap\validators;
 
 use dbmap\base\Validator;
 
-trait Email
+/**
+ * Class Email
+ *
+ * @package dbmap\validators
+ */
+class Email extends Validator
 {
-    use Validator
-
-    public function _validate(&$value)
+    /**
+     * @inheritdoc
+     *
+     * @param mixed $value
+     * @param null  $options
+     *
+     * @return bool
+     */
+    public static function validate(&$value, $options = null)
     {
-        $this->_error = null;
-        $valid_value  = filter_var($value, FILTER_VALIDATE_EMAIL);
+        self::$error = null;
+        $valid_value = filter_var($value, FILTER_VALIDATE_EMAIL);
         if ($valid_value !== false) {
             $value = $valid_value;
 
             return true;
         }
 
-        $this->_error = 'is not correct EMAIL';
+        self::$error = 'is not correct EMAIL';
 
         return false;
     }
