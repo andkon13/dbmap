@@ -8,6 +8,11 @@
 
 namespace dbmap\base;
 
+/**
+ * Class Dummy
+ *
+ * @package dbmap\base
+ */
 trait Dummy
 {
     /**
@@ -57,4 +62,4 @@ trait Dummy
     {
         return true;
     }
-} 
+}

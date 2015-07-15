@@ -10,6 +10,11 @@ namespace dbmap\base;
 
 use dbmap\fields\Id;
 
+/**
+ * Class DbMap
+ *
+ * @package dbmap\base
+ */
 abstract class DbMap
 {
     use Id, Dummy;
@@ -36,9 +41,7 @@ abstract class DbMap
      */
     const MANY_MANY = 3;
 
-    /** @var bool|Pdo */
-    static private $_db = false;
-    static private $_with = [];
+    static private $with = [];
 
     /**
      * Будут ли произведена попытка сохранить данные при выгрузке объекта (__destruct)
@@ -46,44 +49,58 @@ abstract class DbMap
      * @var bool
      */
     public $autoSaveChange = false;
-    public $_relations = [];
+    protected $relations = [];
 
     /** @var bool */
-    private $_isNew = true;
+    private $isNew = true;
+
+    /**
+     * @return boolean
+     */
+    public function getIsNew()
+    {
+        return $this->isNew;
+    }
 
     /**
      * Сохранять ли связи при сохранении модели
      *
      * @var bool
      */
-    private $_saveRelations = false;
+    public $saveRelations = false;
 
     /** @var array */
-    private $_initAttrubutes = [];
+    private $initAttrubutes = [];
+
+    /** @var array */
+    private $errors = [];
+
+    protected static $fields;
 
     /**
-     * Служебные итрибуты класса
      *
-     * @var array
      */
-    private $_dontSaveProperty = ['id', '_dontSaveProperty', '_relations', 'autoSaveChange'];
-
-    /** @var array */
-    private $_errors = [];
+    public function __construct()
+    {
+        $this->isNew = (empty($this->id));
+    }
 
     /**
-     * @param bool  $isNew
-     * @param array $attributes
+     * @return array
      */
-    function __construct($isNew = false, $attributes = [])
+    private function getFields()
     {
-        $this->_isNew = $isNew;
-        if (!empty($attributes)) {
-            $this->_initAttrubutes = $attributes;
-            $this->setAttributes($attributes);
-        } else {
-            $this->_initAttrubutes = $this->getAttributes();
+        if (!static::$fields) {
+            $query          = 'SHOW COLUMNS FROM `' . static::getTableName() . '`';
+            $res            = Pdo::getInstance()->getResult($query);
+            $res            = $res->fetchAll(\PDO::FETCH_ASSOC);
+            static::$fields = [];
+            foreach ($res as $row) {
+                static::$fields[] = $row['Field'];
+            }
         }
+
+        return static::$fields;
     }
 
     /**
@@ -112,13 +129,10 @@ abstract class DbMap
      */
     public function getAttributes()
     {
-        $ref        = new \ReflectionClass($this);
         $attributes = [];
-        foreach ($ref->getProperties(\ReflectionProperty::IS_PUBLIC) as $field) {
-            $field = $field->getName();
-            if (!in_array($field, $this->_dontSaveProperty)) {
-                $attributes[$field] = $this->$field;
-            }
+        $fields     = $this->getFields();
+        foreach ($fields as $field) {
+            $attributes[$field] = $this->$field;
         }
 
         return $attributes;
@@ -130,11 +144,11 @@ abstract class DbMap
      * @param int $limit  Лимит записей
      * @param int $offset сколько записей пропустить
      *
-     * @return DbMap[]
+     * @return static[]
      */
     public static function findAll($limit = 100, $offset = 0)
     {
-        $sql   = new QueryBuilder(get_called_class());
+        $sql   = new QueryBuilder(static::class);
         $param = [];
         if ($limit) {
             $sql->limit(intval($offset) . ', ' . intval($limit));
@@ -150,32 +164,27 @@ abstract class DbMap
      * @param array  $param параметры для запроса
      *
      * @throws \Exception
-     * @return DbMap[]
+     * @return static[]
      */
     public static function findBySql($sql, $param = array())
     {
         /** @var DbMap $models */
         $result = self::getDb()->getResult($sql, $param);
-        /** @var DbMap $models */
-        $class = get_called_class();
+        /** @var static|string $class */
+        $class = static::class;
         /** @var DbMap[] $models */
         $models = $result->fetchAll(\PDO::FETCH_CLASS, $class);
-        if (!empty(self::getWith())) {
+        if (!empty(static::getWith())) {
             $relModels = [];
             $relations = $class::relations();
             foreach (self::getWith() as $relName) {
-                if (class_exists($relName)) {
-                    $relClass = $relName;
-                } else {
-                    $relClass = $class::getNameSpace($class) . '\\' . $relName;
-                }
-
-                $query = new QueryBuilder($relClass);
+                $relClass = $relName;
+                $query    = new QueryBuilder($relClass);
                 if (!in_array($relations[$relName][0], [self::BELONG_TO, self::MANY_MANY])) {
-                    $keys = self::_getKeys($models);
+                    $keys = self::getKeys($models);
                     $query->where($relations[$relName][2] . ' in (' . implode(', ', array_keys($keys)) . ')');
-                } else if ($relations[$relName][0] == self::MANY_MANY) {
-                    $keys = self::_getKeys($models);
+                } elseif ($relations[$relName][0] == self::MANY_MANY) {
+                    $keys = self::getKeys($models);
                     $query
                         ->select('t.*, rel.' . $relations[$relName][3] . ' as ' . $relations[$relName][2])
                         ->addJoin(
@@ -183,12 +192,12 @@ abstract class DbMap
                         )
                         ->where('rel.' . $relations[$relName][3] . ' in (' . implode(',', array_keys($keys)) . ')');
                 } else {
-                    $keys = self::_getKeys($models, $relations[$relName][2]);
+                    $keys = self::getKeys($models, $relations[$relName][2]);
                     $query->where($relations[$relName][2] . ' in (' . implode(', ', array_keys($keys)) . ')');
                 }
 
                 $relModels[$relName] = self::getDb()
-                    ->getResult($query->getQuery(false))
+                    ->getResult($query->getQuery())
                     ->fetchAll(\PDO::FETCH_CLASS, $relClass);
             }
 
@@ -198,25 +207,33 @@ abstract class DbMap
                     foreach ($relClass as $class) {
                         $key = $keys[$class->$field];
                         if (!in_array($relations[$relName][0], [self::HAS_MANY, self::MANY_MANY])) {
-                            $models[$key]->_relations[$relName] = $class;
+                            $models[$key]->relations[$relName] = $class;
                         } else {
                             if ($relations[$relName][0] == self::MANY_MANY) {
                                 unset($class->$field);
                             }
 
-                            $models[$key]->_relations[$relName][] = $class;
+                            $models[$key]->relations[$relName][] = $class;
                         }
                     }
                 } else {
                     foreach ($models as $key => $model) {
                         if (!in_array($relations[$relName][0], [self::HAS_MANY, self::MANY_MANY])) {
-                            $models[$key]->_relations[$relName] = null;
+                            $models[$key]->relations[$relName] = null;
                         } else {
-                            $models[$key]->_relations[$relName] = [];
+                            $models[$key]->relations[$relName] = [];
                         }
                     }
                 }
             }
+        }
+
+        if (count($models)) {
+            array_map(function (&$model) {
+                /** @var DbMap $model */
+                $model->initAttrubutes = $model->getAttributes();
+            },
+                $models);
         }
 
         return $models;
@@ -224,15 +241,11 @@ abstract class DbMap
 
     /**
      * @throws \Exception
-     * @return bool|Pdo
+     * @return Pdo
      */
     public static function getDb()
     {
-        if (!self::$_db) {
-            self::$_db = Pdo::getInstance();
-        }
-
-        return self::$_db;
+        return Pdo::getInstance();
     }
 
     /**
@@ -240,7 +253,7 @@ abstract class DbMap
      */
     public static function getWith()
     {
-        return self::$_with;
+        return self::$with;
     }
 
     /**
@@ -249,7 +262,7 @@ abstract class DbMap
      *
      * @return array
      */
-    private static function _getKeys($models, $field = 'id')
+    private static function getKeys($models, $field = 'id')
     {
         $keys = [];
         foreach ($models as $key => $model) {
@@ -273,15 +286,15 @@ abstract class DbMap
         }
 
         /** @var DbMap $class */
-        $class = get_called_class();
+        $class = static::class;
         $class = new $class();
         foreach ($relations as $relName) {
             if (array_key_exists($relName, $class::relations())) {
-                self::$_with[] = $relName;
+                self::$with[] = $relName;
             }
         }
 
-        self::$_with = array_unique(self::$_with);
+        self::$with = array_unique(self::$with);
 
         return $class;
     }
@@ -301,19 +314,26 @@ abstract class DbMap
      *
      * @return mixed
      */
-    function __get($name)
+    public function __get($name)
     {
-        if (array_key_exists($name, $this->relations())) {
-            return $this->_getRelation($name);
+        if (array_key_exists($name, static::relations())) {
+            return static::getRelation($name);
         }
 
         return false;
     }
 
-    function __set($name, $value)
+    /**
+     * @param $name
+     * @param $value
+     *
+     * @return void
+     * @throws \Exception
+     */
+    public function __set($name, $value)
     {
-        if (array_key_exists($name, $this->relations())) {
-            $this->_setRelation($name, $value);
+        if (array_key_exists($name, static::relations())) {
+            $this->setRelation($name, $value);
         }
     }
 
@@ -325,16 +345,15 @@ abstract class DbMap
      * @return DbMap|DbMap[]
      * @throws \Exception
      */
-    private function _getRelation($relation_name)
+    private function getRelation($relation_name)
     {
-        if (array_key_exists($relation_name, $this->_relations)) {
-            return $this->_relations[$relation_name];
+        if (array_key_exists($relation_name, $this->relations)) {
+            return $this->relations[$relation_name];
         }
 
-        $relation = $this->relations()[$relation_name];
+        $relation = static::relations()[$relation_name];
         /** @var DbMap $class */
         $class = $relation[1];
-        $class = (class_exists($class)) ? $class : $this->getNameSpace($this) . '\\' . $class;
         $field = $relation[2];
         switch ($relation[0]) {
             case self::HAS_MANY:
@@ -363,21 +382,13 @@ abstract class DbMap
                 throw new \Exception('Wrong relation type. 0_o');
         }
 
+        if (!array_key_exists($relation_name, $this->relations)) {
+            $this->relations[$relation_name] = [];
+        }
+
+        $this->relations[$relation_name] = $result;
+
         return $result;
-    }
-
-    /**
-     * Возвращает неймспейс объекта
-     *
-     * @param mixed $object
-     *
-     * @return string
-     */
-    public static function getNameSpace($object)
-    {
-        $reflect = new \ReflectionClass($object);
-
-        return $reflect->getNamespaceName();
     }
 
     /**
@@ -394,19 +405,10 @@ abstract class DbMap
      * @throws \Exception
      * @return void
      */
-    private function _setRelation($name, $value)
+    private function setRelation($name, $value)
     {
         /** @var DbMap $class */
-        $class_name = $this->relations()[$name][1];
-        if (!class_exists($class_name)) {
-            $class = $this->getNameSpace($this) . '\\' . $class_name;
-            if (!class_exists($class)) {
-                throw new \Exception('Class ' . $class_name . ' not found');
-            }
-        } else {
-            $class = $class_name;
-        }
-
+        $class = static::relations()[$name][1];
         if (!$value instanceof DbMap && is_int($value)) {
             $value = $class::findById($value);
         }
@@ -415,29 +417,29 @@ abstract class DbMap
             throw new \Exception('Model ' . $class . '->id = ' . $value . ' not exist');
         }
 
-        $this->_saveRelations = true;
-        $field                = $this->relations()[$name][2];
-        switch ($this->relations()[$name][0]) {
+        $this->saveRelations = true;
+        $field               = static::relations()[$name][2];
+        switch (static::relations()[$name][0]) {
             case self::HAS_ONE:
-                $this->_relations[$name] = $value;
-                if (!$this->_isNew) {
+                $this->relations[$name] = $value;
+                if (!$this->isNew) {
                     $value->$field = $this->id;
                 }
                 break;
             case self::HAS_MANY:
-                $this->_relations[$name][] = $value;
-                if (!$this->_isNew) {
+                $this->relations[$name][] = $value;
+                if (!$this->isNew) {
                     $value->$field = $this->id;
                 }
                 break;
             case self::BELONG_TO:
-                $this->_relations[$name] = $value;
-                if (!$this->_isNew) {
+                $this->relations[$name] = $value;
+                if (!$this->isNew) {
                     $this->$field = $value->id;
                 }
                 break;
             case self::MANY_MANY:
-                $this->_relations[$name][] = $value;
+                $this->relations[$name][] = $value;
                 break;
         }
     }
@@ -448,7 +450,7 @@ abstract class DbMap
     public function __destruct()
     {
         if ($this->autoSaveChange) {
-            $diff = array_diff($this->_initAttrubutes, $this->getAttributes());
+            $diff = array_diff($this->initAttrubutes, $this->getAttributes());
             if (count($diff)) {
                 $this->save();
             }
@@ -470,24 +472,24 @@ abstract class DbMap
             return false;
         }
 
-        $table = $this->getTableName();
-        if ($this->_isNew) {
-            $save     = $this->getDb()->insert($table, $this->getAttributes());
+        $table = static::getTableName();
+        if ($this->isNew) {
+            $save     = static::getDb()->insert($table, $this->getAttributes());
             $this->id = $save;
         } else {
-            $save = $this->getDb()->update($table, $this->getAttributes(), ['id' => $this->id]);
+            $save = static::getDb()->update($table, $this->getAttributes(), ['id' => $this->id]);
         }
 
         if (!$save) {
-            throw new \Exception($this->getDb()->errorInfo());
+            throw new \Exception(static::getDb()->errorInfo());
         }
 
-        if ($this->_saveRelations) {
-            $this->_saveRelations();
+        if ($this->saveRelations) {
+            $this->saveRelations();
         }
 
         $this->afterSave();
-        $this->_initAttrubutes = $this->getAttributes();
+        $this->initAttrubutes = $this->getAttributes();
 
         return $save;
     }
@@ -501,36 +503,38 @@ abstract class DbMap
             return false;
         }
 
-        $attributes    = $this->getAttributes();
-        $this->_errors = [];
-        $result        = true;
+        $attributes   = $this->getAttributes();
+        $this->errors = [];
+        $result       = true;
         foreach ($attributes as $field => $value) {
             $validator_func = $field . 'Validator';
             if (method_exists($this, $validator_func)) {
-                $field_result = $this->$validator_func($value);
-                if (!$field_result) {
-                    $this->_errors[$field][] = $this->getLastError();
-                }
-
-                $result = ($result && $field_result);
+                $field_result       = $this->$validator_func($value);
+                $result             = ($result && $field_result);
                 $attributes[$field] = $value;
             }
         }
 
+        $this->setAttributes($attributes);
+
         return $result;
     }
 
-    private function _saveRelations()
+    /**
+     * @return void
+     * @throws \Exception
+     */
+    private function saveRelations()
     {
-        foreach ($this->_relations as $name => $rels) {
+        foreach ($this->relations as $name => $rels) {
             if (is_array($rels)) {
                 /** @var DbMap[] $rels */
                 foreach ($rels as $rel) {
                     $rel->save();
-                    if ($this->relations()[$name][0] == self::MANY_MANY) {
+                    if (static::relations()[$name][0] == self::MANY_MANY) {
                         $sql = '
-                            insert ignore ' . $this->relations()[$name][2]
-                            . ' (' . $this->relations()[$name][3] . ', ' . $this->relations()[$name][4]
+                            insert ignore ' . static::relations()[$name][2]
+                            . ' (' . static::relations()[$name][3] . ', ' . static::relations()[$name][4]
                             . ') values (:this_id, :rel_id)';
                         self::getDb()->execute(
                             $sql,
@@ -558,10 +562,10 @@ abstract class DbMap
     public function getErrors($field = null)
     {
         if ($field) {
-            return ($this->hasErrors($field)) ? $this->_errors[$field] : null;
+            return ($this->hasErrors($field)) ? $this->errors[$field] : null;
         }
 
-        return ($this->hasErrors()) ? $this->_errors : [];
+        return ($this->hasErrors()) ? $this->errors : [];
     }
 
     /**
@@ -574,9 +578,42 @@ abstract class DbMap
     public function hasErrors($field = null)
     {
         if ($field) {
-            return isset($this->_errors[$field]);
+            return isset($this->errors[$field]);
         }
 
-        return !empty($this->_errors);
+        return 0 !== count($this->errors);
+    }
+
+    /**
+     * Добавляет ошибки
+     *
+     * @param string $field
+     * @param string $error
+     *
+     * @return void
+     */
+    protected function addError($field, $error)
+    {
+        if (!array_key_exists($field, $this->errors)) {
+            $this->errors[$field] = [];
+        }
+
+        $this->errors[$field][] = $error;
+    }
+
+    /**
+     * Удаляет конкретную запись
+     *
+     * @return bool
+     * @throws \Exception
+     */
+    public function delete()
+    {
+        if (!$this->getIsNew()) {
+            return Pdo::getInstance()
+                ->execute('delete from `' . static::getTableName() . '` where id=:id', [':id' => $this->id]);
+        }
+
+        return true;
     }
 }

@@ -2,8 +2,8 @@
 /**
  * Created by PhpStorm.
  * User: andkon
- * Date: 15.04.14
- * Time: 17:17
+ * Date: 07.04.14
+ * Time: 0:17
  */
 
 namespace dbmap;
@@ -15,17 +15,14 @@ use dbmap\fields\Status;
 use dbmap\fields\Updated;
 
 /**
- * Class Client
+ * Class User
  *
  * @package dbmap
- *
- * @property User $user
+ * @property Client[] $clients
  */
-class Client extends DbMap
+class User extends DbMap
 {
     use Name, Updated, Created, Status;
-
-    public $user_id;
 
     /**
      * return table name
@@ -34,7 +31,7 @@ class Client extends DbMap
      */
     static public function getTableName()
     {
-        return 'client';
+        return 'user';
     }
 
     /**
@@ -45,8 +42,23 @@ class Client extends DbMap
     public static function relations()
     {
         return [
-            'user' => [self::BELONG_TO, User::class, 'user_id']
+            'clients' => [self::HAS_MANY, Client::class, 'user_id']
         ];
     }
 
+    /**
+     * @param mixed $name
+     *
+     * @return bool
+     */
+    public function nameValidator($name)
+    {
+        if (empty($name)) {
+            $this->addError('name', 'is not null');
+
+            return false;
+        }
+
+        return true;
+    }
 }

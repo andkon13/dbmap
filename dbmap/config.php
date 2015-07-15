@@ -7,7 +7,7 @@
  */
 return [
     'host'      => 'localhost',
-    'dbname'    => 'tmp',
+    'dbname'    => 'test',
     'user'      => 'root',
     'pass'      => '123',
     'character' => 'utf8',

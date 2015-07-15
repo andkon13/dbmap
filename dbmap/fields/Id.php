@@ -9,8 +9,6 @@
 namespace dbmap\fields;
 
 use dbmap\base\DbMap;
-use dbmap\base\Field;
-use dbmap\validators\Int;
 
 /**
  * Class Id
@@ -19,30 +17,25 @@ use dbmap\validators\Int;
  */
 trait Id
 {
-    use Field, Int;
-
-    /** @var  int */
+    /** @var int */
     public $id;
 
+    /**
+     * Возвращает модель по id
+     *
+     * @param $id
+     *
+     * @return static|null
+     */
     public static function findById($id)
     {
         /** @var DbMap $class */
-        $class  = get_called_class();
-        $sql    = 'select * from ' . Field::getTable($class) . ' where id = ?';
-        $result = $class::findBySql($sql, [$id]);
+        $sql    = 'select * from ' . static::getTableName() . ' where id = ?';
+        $result = static::findBySql($sql, [$id]);
         if (!isset($result[0])) {
             return null;
         }
 
         return array_pop($result);
-    }
-
-    public function idValidator($id)
-    {
-        if (!$this->_validate($id)) {
-            $this->errors[] = $this->getLastError();
-        }
-
-        return true;
     }
 } 

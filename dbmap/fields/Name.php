@@ -8,12 +8,13 @@
 
 namespace dbmap\fields;
 
-use dbmap\base\DbMap;
-use dbmap\base\Field;
-
+/**
+ * Class Name
+ *
+ * @package dbmap\fields
+ */
 trait Name
 {
-    use Field;
 
     public $name;
 
@@ -22,11 +23,11 @@ trait Name
      *
      * @param string $name имя
      *
-     * @return DbMap|null
+     * @return static|null
      */
     public static function findByName($name)
     {
-        $result = self::_getResult($name);
+        $result = self::getResult($name);
         if (!isset($result[0])) {
             return null;
         }
@@ -35,25 +36,29 @@ trait Name
     }
 
     /**
-     * Возвращает результат выполнения запроса преобразованный в модели
+     * Возвращает модель по имени
      *
      * @param string $name имя
      *
-     * @return \dbmap\base\DbMap[]
+     * @return static[]
      */
-    private static function _getResult($name)
+    private static function getResult($name)
     {
-        /** @var DbMap $class */
-        $class  = get_called_class();
-        $sql    = 'select * from ' . Field::getTable($class) . ' where name = :name';
-        $result = $class::findBySql($sql, [':name' => $name]);
+        $sql    = 'select * from ' . static::getTableName() . ' where name = :name';
+        $result = static::findBySql($sql, [':name' => $name]);
 
         return $result;
     }
 
+    /**
+     * Возвращиет массив по имени
+     *
+     * @param string $name
+     *
+     * @return static[]
+     */
     public static function byNameAll($name)
     {
-
-        return self::_getResult($name);
+        return self::getResult($name);
     }
 } 

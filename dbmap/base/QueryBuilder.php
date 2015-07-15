@@ -8,53 +8,58 @@
 
 namespace dbmap\base;
 
+/**
+ * Class QueryBuilder
+ *
+ * @package dbmap\base
+ */
 class QueryBuilder
 {
-    private $_select = 't.*';
-    private $_where = '';
-    private $_join = '';
-    private $_limit = '';
-    private $_group = '';
-    private $_hawing = '';
-    private $_table;
+    private $select = 't.*';
+    private $where = '';
+    private $join = '';
+    private $limit = '';
+    private $group = '';
+    private $hawing = '';
+    private $table;
     /** @var \dbmap\base\DbMap */
-    private $_class;
+    private $class;
 
     /**
      * @param DbMap $class
      */
-    function __construct($class)
+    public function __construct($class)
     {
-        $this->_class = $class;
-        $this->_table = $class::getTableName();
+        $this->class = $class;
+        $this->table = $class::getTableName();
     }
 
     /**
      * Возвращает sql запрос
      *
-*@return string
+     * @return string
      */
     public function getQuery()
     {
-        $query = 'select ' . $this->_select . ' from ' . $this->_table . ' t ';
-        if (!empty($this->_join)) {
-            $query .= $this->_join;
+        $query = 'select ' . $this->select . ' from ' . $this->table . ' t ';
+        if (!empty($this->join)) {
+            $query .= $this->join;
         }
 
-        if (!empty($this->_where)) {
-            $query .= ' where ' . $this->_where;
+        if (!empty($this->where)) {
+            $query .= ' where ' . $this->where;
         }
 
-        if (!empty($this->_group)) {
-            $query .= ' group by ' . $this->_group;
+        if (!empty($this->group)) {
+            $query .= ' group by ' . $this->group;
         }
 
-        if (!empty($this->_hawing)) {
-            $query .= ' having ' . $this->_hawing;
+        if (!empty($this->hawing)) {
+            $query .= ' having ' . $this->hawing;
         }
 
-        if (!empty($this->_limit)) {
-            $query .= ' limit ' . $this->_limit;
+        if (!empty($this->limit)) {
+            $query .= ' limit ' . $this->limit;
         }
 
         return $query;
@@ -64,14 +69,12 @@ class QueryBuilder
      * Добавляет жоины
      *
      * @param string $join строка будет вставлена в join
-
-
-*
-*@return $this
+     *
+     * @return static
      */
     public function addJoin($join)
     {
-        $this->_join .= $join;
+        $this->join .= $join;
 
         return $this;
     }
@@ -81,11 +84,11 @@ class QueryBuilder
      *
      * @param string $group
      *
-     * @return $this
+     * @return static
      */
     public function group($group)
     {
-        $this->_group = $group;
+        $this->group = $group;
 
         return $this;
     }
@@ -93,12 +96,12 @@ class QueryBuilder
     /**
      * @param string $select
      *
-     * @return $this
+     * @return static
      */
     public function select($select = 't.*')
     {
-        $select        = ($select == '*') ? 't.*' : $select;
-        $this->_select = $select;
+        $select        = ($select === '*') ? 't.*' : $select;
+        $this->select = $select;
 
         return $this;
     }
@@ -106,11 +109,11 @@ class QueryBuilder
     /**
      * @param string $where
      *
-     * @return $this
+     * @return static
      */
     public function where($where)
     {
-        $this->_where = $where;
+        $this->where = $where;
 
         return $this;
     }
@@ -121,15 +124,15 @@ class QueryBuilder
      * @param string $where
      * @param string $connention and|or
      *
-     * @return $this
+     * @return static
      */
     public function addWhere($where, $connention = 'and')
     {
-        if (!empty($this->_where)) {
-            $this->_where .= $connention;
+        if (!empty($this->where)) {
+            $this->where .= $connention;
         }
 
-        $this->_where .= $where;
+        $this->where .= $where;
 
         return $this;
     }
@@ -137,11 +140,11 @@ class QueryBuilder
     /**
      * @param string $limit
      *
-     * @return $this
+     * @return static
      */
     public function limit($limit)
     {
-        $this->_limit = $limit;
+        $this->limit = $limit;
 
         return $this;
     }
@@ -149,11 +152,11 @@ class QueryBuilder
     /**
      * @param string $having
      *
-     * @return $this
+     * @return static
      */
     public function having($having)
     {
-        $this->_hawing = $having;
+        $this->hawing = $having;
 
         return $this;
     }
