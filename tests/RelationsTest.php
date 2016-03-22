@@ -30,6 +30,7 @@ class RelationsTest extends Base
             throw new \PHPUnit_Framework_Exception('result must by array of Client');
         }
 
+        error_reporting('~' . E_ERROR);
         $clientId               = $user->clients[0]->id;
         $user->clients[0]->name = 'new name';
         $user->saveRelations    = true;

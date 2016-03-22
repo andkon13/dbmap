@@ -94,6 +94,10 @@ abstract class DbMap
             $query          = 'SHOW COLUMNS FROM `' . static::getTableName() . '`';
             $res            = Pdo::getInstance()->getResult($query);
             $res            = $res->fetchAll(\PDO::FETCH_ASSOC);
+            if (!$res || !count($res)) {
+                throw new \Exception('table not exist');
+            }
+
             static::$fields = [];
             foreach ($res as $row) {
                 static::$fields[] = $row['Field'];
@@ -151,7 +155,7 @@ abstract class DbMap
         $sql   = new QueryBuilder(static::class);
         $param = [];
         if ($limit) {
-            $sql->limit(intval($offset) . ', ' . intval($limit));
+            $sql->limit((int)$offset . ', ' . (int)$limit);
         }
 
         return self::findBySql($sql->getQuery(), $param);
@@ -472,20 +476,20 @@ abstract class DbMap
             return false;
         }
 
-        $table = static::getTableName();
-        if ($this->isNew) {
-            $save     = static::getDb()->insert($table, $this->getAttributes());
-            $this->id = $save;
-        } else {
-            $save = static::getDb()->update($table, $this->getAttributes(), ['id' => $this->id]);
-        }
+        try {
+            $table = static::getTableName();
+            if ($this->isNew) {
+                $save     = static::getDb()->insert($table, $this->getAttributes());
+                $this->id = $save;
+            } else {
+                $save = static::getDb()->update($table, $this->getAttributes(), ['id' => $this->id]);
+            }
 
-        if (!$save) {
-            throw new \Exception(static::getDb()->errorInfo());
-        }
-
-        if ($this->saveRelations) {
-            $this->saveRelations();
+            if ($this->saveRelations) {
+                $this->saveRelations();
+            }
+        } catch (\Exception $e) {
+            $save = false;
         }
 
         $this->afterSave();
